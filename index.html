@@ -648,6 +648,10 @@
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="14" height="14" rx="1.5"/><path d="M4 5h8M4 8h6M4 11h4"/></svg>
       Amortización
     </button>
+    <button class="nav-item" onclick="navigate('cotizaciones'); closeSidebar()">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h12v2H2zM2 6h8v2H2zM2 10h6v2H2z"/><circle cx="12" cy="11" r="3"/><path d="M11 11h2M12 10v2"/></svg>
+      Cotizaciones
+    </button>
   </div>
   <div class="sidebar-footer">v1.0 · 2026</div>
 </nav>
@@ -949,6 +953,54 @@
       </div>
     </div>
 
+    <!-- PAGE: COTIZACIONES -->
+    <div class="page" id="page-cotizaciones">
+      <div class="card" style="max-width:700px;margin:0 auto">
+        <div class="card-header">
+          <span class="card-title">Generar Cotización</span>
+          <button class="btn btn-primary btn-sm" onclick="imprimirCotizacion()">🖨 Imprimir cotización</button>
+        </div>
+        <div class="modal-body" style="padding:24px">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Nombre del cliente</label>
+              <input type="text" class="form-control" id="cot-nombre" placeholder="Nombre completo">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Lote de interés</label>
+              <select class="form-control" id="cot-lote" onchange="onCotLoteChange()">
+                <option value="">— Seleccionar lote —</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Tipo de venta</label>
+              <select class="form-control" id="cot-tipo" onchange="onCotLoteChange()">
+                <option value="plazo">A Plazo (180 cuotas)</option>
+                <option value="contado">Contado</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Precio del lote ($)</label>
+              <input type="number" class="form-control" id="cot-precio" placeholder="18500.00" step="0.01" oninput="renderCotizacion()">
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Monto de reserva ($)</label>
+              <input type="number" class="form-control" id="cot-reserva" placeholder="500.00" step="0.01" oninput="renderCotizacion()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tasa de interés anual (%)</label>
+              <input type="number" class="form-control" id="cot-tasa" placeholder="10.5" step="0.01" oninput="renderCotizacion()">
+            </div>
+          </div>
+        </div>
+        <div id="cot-preview" style="padding:0 24px 24px"></div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 
@@ -1112,17 +1164,17 @@
         <div class="form-grid" style="margin-top:10px">
           <div class="form-group">
             <label class="form-label">Precio del lote ($)</label>
-            <input type="number" class="form-control" id="cli-precio" placeholder="18500.00" step="0.01" oninput="onCliLoteChange()">
+            <input type="number" class="form-control" id="cli-precio" placeholder="18500.00" step="0.01">
           </div>
           <div class="form-group">
             <label class="form-label">Monto de reserva ($)</label>
-            <input type="number" class="form-control" id="cli-reserva" placeholder="500.00" step="0.01" oninput="onCliLoteChange()">
+            <input type="number" class="form-control" id="cli-reserva" placeholder="500.00" step="0.01">
           </div>
         </div>
         <div class="form-grid" style="margin-top:0">
           <div class="form-group">
             <label class="form-label">Tasa de interés anual (%)</label>
-            <input type="number" class="form-control" id="cli-tasa" placeholder="10.5" step="0.01" oninput="onCliLoteChange()">
+            <input type="number" class="form-control" id="cli-tasa" placeholder="10.5" step="0.01">
           </div>
           <div class="form-group">
             <label class="form-label">Forma de pago</label>
@@ -1581,7 +1633,7 @@ function numeroALetras(num) {
 // ═══════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════
-const pageTitles = { dashboard:'Dashboard', clientes:'Lote-habientes', pagos:'Pagos', lotes:'Lotes', recibos:'Recibos', saldos:'Saldos por Lote', amortizacion:'Amortización' };
+const pageTitles = { dashboard:'Dashboard', clientes:'Lote-habientes', pagos:'Pagos', lotes:'Lotes', recibos:'Recibos', saldos:'Saldos por Lote', amortizacion:'Amortización', cotizaciones:'Cotizaciones' };
 function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1598,6 +1650,124 @@ function renderPage(page) {
   else if (page === 'recibos') renderRecibos();
   else if (page === 'saldos') renderSaldos();
   else if (page === 'amortizacion') initAmortizacion();
+  else if (page === 'cotizaciones') initCotizaciones();
+}
+
+// ═══════════════════════════════════════════════
+// COTIZACIONES
+// ═══════════════════════════════════════════════
+function initCotizaciones() {
+  const sel = document.getElementById('cot-lote');
+  sel.innerHTML = '<option value="">— Seleccionar lote —</option>' +
+    lotes.filter(l => l.estado_plano === 'Disponible')
+      .map(l => `<option value="${l.id}">${l.id} — ${l.area_m2} m²</option>`).join('');
+  document.getElementById('cot-preview').innerHTML = '';
+}
+
+function onCotLoteChange() {
+  const loteId = document.getElementById('cot-lote').value;
+  const tipo   = document.getElementById('cot-tipo').value;
+  if (!loteId) return;
+  const l = getLote(loteId);
+  document.getElementById('cot-precio').value  = calcPrecioLote(l.area_m2, tipo);
+  document.getElementById('cot-reserva').value = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA);
+  document.getElementById('cot-tasa').value    = TASA_ANUAL_DEFAULT;
+  renderCotizacion();
+}
+
+function renderCotizacion() {
+  const loteId  = document.getElementById('cot-lote').value;
+  const tipo    = document.getElementById('cot-tipo').value;
+  const nombre  = document.getElementById('cot-nombre').value || 'Cliente';
+  const valor   = parseFloat(document.getElementById('cot-precio').value)  || 0;
+  const reserva = tipo === 'contado' ? 0 : (parseFloat(document.getElementById('cot-reserva').value) || 0);
+  const tasaPct = parseFloat(document.getElementById('cot-tasa').value)    || TASA_ANUAL_DEFAULT;
+  if (!loteId || !valor) { document.getElementById('cot-preview').innerHTML = ''; return; }
+
+  const l        = getLote(loteId);
+  const tasa     = tasaPct / 100;
+  const financiar = tipo === 'contado' ? 0 : valor - reserva;
+  const tm       = tasa / 12;
+  const cuota    = tipo === 'contado' ? 0 : Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
+  const totalPlazo = tipo === 'contado' ? valor : reserva + (cuota * 180);
+  const totalInteres = tipo === 'contado' ? 0 : totalPlazo - valor;
+
+  document.getElementById('cot-preview').innerHTML = `
+    <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-top:8px" id="cot-doc">
+      <div style="background:var(--text);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:16px">Parcelación Santa Teresita 2</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">Ahuachapán, El Salvador · muzzoloinversiones@yahoo.com</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;font-weight:700;letter-spacing:0.05em">COTIZACIÓN</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5)">${new Date().toLocaleDateString('es-SV')}</div>
+        </div>
+      </div>
+      <div style="padding:20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Preparada para</div>
+        <div style="font-size:16px;font-weight:600">${nombre}</div>
+      </div>
+      <div style="padding:20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px">Detalle del lote</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:13px">
+          <div style="background:var(--surface2);padding:12px;border-radius:6px">
+            <div style="color:var(--text-muted);font-size:11px">Lote</div>
+            <div style="font-weight:700;font-size:16px;color:var(--accent)">${loteId}</div>
+          </div>
+          <div style="background:var(--surface2);padding:12px;border-radius:6px">
+            <div style="color:var(--text-muted);font-size:11px">Área</div>
+            <div style="font-weight:600">${l.area_m2} m²</div>
+            <div style="font-size:11px;color:var(--text-muted)">${l.area_v2?.toFixed(2)} v²</div>
+          </div>
+          <div style="background:var(--surface2);padding:12px;border-radius:6px">
+            <div style="color:var(--text-muted);font-size:11px">Modalidad</div>
+            <div style="font-weight:600">${tipo === 'contado' ? 'Contado' : 'A Plazo'}</div>
+            ${tipo === 'plazo' ? `<div style="font-size:11px;color:var(--text-muted)">180 cuotas · ${tasaPct}% anual</div>` : ''}
+          </div>
+        </div>
+      </div>
+      <div style="padding:20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px">Resumen financiero</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span>Precio del lote</span><strong>${fmt(valor)}</strong>
+          </div>
+          ${tipo === 'plazo' ? `
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span>Reserva / Prima inicial</span><strong>${fmt(reserva)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span>Monto a financiar</span><strong>${fmt(financiar)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--accent);font-weight:600">Cuota mensual</span>
+            <strong style="color:var(--accent);font-size:18px">${fmt(cuota)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--text-muted)">Plazo</span><span>180 meses (15 años)</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--text-muted)">Total intereses</span><span style="color:var(--amber)">${fmt(totalInteres)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:14px">
+            <strong>Costo total del lote</strong><strong style="color:var(--red)">${fmt(totalPlazo)}</strong>
+          </div>` : `
+          <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px">
+            <strong>Pago único de contado</strong><strong style="color:var(--accent)">${fmt(valor)}</strong>
+          </div>`}
+        </div>
+      </div>
+      <div style="padding:16px 20px;background:var(--surface2);font-size:11px;color:var(--text-muted);text-align:center;font-style:italic">
+        Esta cotización es válida por 30 días · Parcelación Santa Teresita 2, "Tu pedacito de Cielo"
+      </div>
+    </div>`;
+}
+
+function imprimirCotizacion() {
+  const doc = document.getElementById('cot-doc');
+  if (!doc) { alert('Primero genera una cotización seleccionando un lote.'); return; }
+  printWindow(doc.innerHTML);
 }
 
 // ═══════════════════════════════════════════════
@@ -2433,6 +2603,7 @@ function setupModalCliente() {
   });
   document.getElementById('cli-lote-info').style.display = 'none';
   document.getElementById('cli-tipo-venta').value = 'plazo';
+  document.getElementById('cli-lote').value = '';
 
   const sel = document.getElementById('cli-lote');
   const disponibles = lotes.filter(l => l.estado_plano === 'Disponible');
@@ -2453,10 +2624,10 @@ function onCliLoteChange() {
   const reservaEl = document.getElementById('cli-reserva');
   const tasaEl    = document.getElementById('cli-tasa');
 
-  // Always recalculate defaults when lote or tipo changes
-  precioEl.value  = calcPrecioLote(l.area_m2, tipo);
-  reservaEl.value = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA);
-  tasaEl.value    = TASA_ANUAL_DEFAULT;
+  // Only pre-fill if fields are empty (don't overwrite manual edits)
+  if (!precioEl.value)  precioEl.value  = calcPrecioLote(l.area_m2, tipo);
+  if (!reservaEl.value) reservaEl.value = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA);
+  if (!tasaEl.value)    tasaEl.value    = TASA_ANUAL_DEFAULT;
 
   const valor    = parseFloat(precioEl.value)  || calcPrecioLote(l.area_m2, tipo);
   const reserva  = tipo === 'contado' ? 0 : (parseFloat(reservaEl.value) || RESERVA_PEQUEÑA);
@@ -2545,7 +2716,7 @@ function borrarPerfilCliente() {
 
   if (!confirm(`¿Borrar el perfil de ${c.nombre}?\n${lotesList}\nPagos registrados: ${pagosCnt}\n\nEsta acción NO borra los pagos del historial.\n¿Continuar?`)) return;
 
-  // Free up lotes — update in memory and Firestore
+  // Free up lotes — reset in memory and delete from Firestore so they revert to disponible
   misLotes.forEach(l => {
     const idx = lotes.findIndex(x => x.id === l.id);
     if (idx >= 0) {
@@ -2558,14 +2729,11 @@ function borrarPerfilCliente() {
       lotes[idx].meses          = 0;
       lotes[idx].cuota          = 0;
 
-      // Sync to Firestore
+      // Delete the lote doc from Firestore so it reverts to base catalog state
       if (window._db && lotes[idx]._docId) {
-        const { collection, doc, setDoc } = window._fbFns;
-        setDoc(doc(collection(window._db, 'lotes'), lotes[idx]._docId), lotes[idx], { merge: true });
-      } else if (window._db) {
-        // Lote may not have a Firestore doc yet — delete entry if exists
         const { collection, doc, deleteDoc } = window._fbFns;
-        // Try to find by lote id in Firestore — handled by onSnapshot refresh
+        deleteDoc(doc(collection(window._db, 'lotes'), lotes[idx]._docId));
+        lotes[idx]._docId = null;
       }
     }
   });
