@@ -1754,19 +1754,19 @@ function renderCotizacion() {
 
   document.getElementById('cot-preview').innerHTML = `
     <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-top:8px" id="cot-doc">
-      <div style="background:var(--text);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center">
+      <div style="background:#fff;color:var(--text);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--text)">
         <div style="display:flex;align-items:center;gap:14px">
-          <img src="${LOGO_BASE64}" style="height:52px;width:auto;object-fit:contain" alt="Logo">
+          <img src="${LOGO_BASE64}" style="height:52px;width:auto;object-fit:contain;filter:invert(1)" alt="Logo">
           <div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:4px">Tel/Wapp: +503 7969-2069</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.55)">Km. 3, Calle a Tacuba, Ahuachapán</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.55)">muzzoloinversiones@yahoo.com</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Tel/Wapp: +503 7969-2069</div>
+            <div style="font-size:11px;color:var(--text-muted)">Km. 3, Calle a Tacuba, Ahuachapán</div>
+            <div style="font-size:11px;color:var(--text-muted)">muzzoloinversiones@yahoo.com</div>
           </div>
         </div>
         <div style="text-align:right">
           <div style="font-size:15px;font-weight:700;letter-spacing:0.05em">COTIZACIÓN</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px">Fecha:</div>
-          <input type="date" id="cot-fecha-doc" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.3);border-radius:4px;color:#fff;font-size:11px;padding:3px 6px;margin-top:2px;font-family:'DM Sans',sans-serif">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Fecha:</div>
+          <input type="date" id="cot-fecha-doc" style="background:#f5f2ec;border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;padding:3px 6px;margin-top:2px;font-family:'DM Sans',sans-serif">
         </div>
       </div>
       <div style="padding:20px;border-bottom:1px solid var(--border)">
@@ -1839,11 +1839,17 @@ function imprimirCotizacion() {
   let html = doc.innerHTML;
   const fechaInput = document.getElementById('cot-fecha-doc');
   if (fechaInput) {
-    const fechaVal = fechaInput.value
-      ? new Date(fechaInput.value + 'T12:00:00').toLocaleDateString('es-SV', {day:'2-digit', month:'2-digit', year:'numeric'})
-      : '___/___/______';
+    let fechaVal = '___/___/______';
+    if (fechaInput.value) {
+      const d = new Date(fechaInput.value + 'T12:00:00');
+      const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+      const dd  = String(d.getDate()).padStart(2,'0');
+      const mes = meses[d.getMonth()];
+      const yyyy = d.getFullYear();
+      fechaVal = `${dd}/${mes}/${yyyy}`;
+    }
     html = html.replace(/<input[^>]*id="cot-fecha-doc"[^>]*>/,
-      `<span style="color:#fff;font-size:12px;font-weight:600">${fechaVal}</span>`);
+      `<span style="color:var(--text);font-size:12px;font-weight:600">${fechaVal}</span>`);
   }
   printWindow(html);
 }
