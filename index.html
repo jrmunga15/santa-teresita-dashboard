@@ -417,36 +417,52 @@
   .text-right { text-align: right; }
 
   @media print {
-    /* ── Ocultar chrome de la app siempre ── */
+    /* Ocultar todo por defecto */
+    body * { visibility: hidden !important; }
     .sidebar, .topbar, .no-print,
-    .modal-footer, .modal-close,
-    #login-screen { display: none !important; }
+    .modal-footer, .modal-close { display: none !important; }
 
-    body { visibility: hidden !important; background: #fff !important; }
-
-    /* ── CASO 1: Recibo (modal abierto) ── */
-    .modal-overlay.open { display: block !important; position: static !important; background: none !important; }
-    .modal-overlay.open *,
-    .modal-overlay.open { visibility: visible !important; }
-    .modal-overlay.open .modal { box-shadow: none !important; max-width:100% !important; width:100% !important; border:none !important; }
-
-    /* ── CASO 2: Perfil cliente y Amortización (amort-print-area) ── */
-    #amort-print-area { display: block !important; visibility: visible !important; }
-    #amort-print-area * { visibility: visible !important; }
-    #amort-print-area {
-      position: fixed !important;
-      inset: 0 !important;
-      background: #fff !important;
-      padding: 20px 28px !important;
+    /* ── MODO 1: Imprimir área de amortización / perfil ── */
+    body.print-area #amort-print-area,
+    body.print-area #amort-print-area * { visibility: visible !important; }
+    body.print-area #amort-print-area {
+      position: fixed !important; inset: 0 !important;
+      background: #fff !important; padding: 20px 28px !important;
       font-family: 'DM Sans', sans-serif !important;
-      font-size: 11px !important;
-      color: #000 !important;
+      font-size: 11px !important; color: #000 !important;
       z-index: 9999 !important;
     }
-    #amort-print-area table { width: 100%; border-collapse: collapse; }
-    #amort-print-area th { background: #f0ece6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    #amort-print-area .paid-row { background: #f0fff4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    #amort-print-area .current-row { background: #fdebd0 !important; font-weight: 700 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body.print-area #amort-print-area table { width:100%; border-collapse:collapse; }
+    body.print-area #amort-print-area th { background:#f0ece6 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body.print-area #amort-print-area .paid-row { background:#f0fff4 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body.print-area #amort-print-area .current-row { background:#fdebd0 !important; font-weight:700 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+    /* ── MODO 2: Imprimir recibo (modal abierto) ── */
+    body.print-recibo .modal-overlay.open,
+    body.print-recibo .modal-overlay.open * { visibility: visible !important; }
+    body.print-recibo .modal-overlay.open {
+      display: flex !important; position: fixed !important;
+      inset: 0 !important; background: #fff !important; z-index: 9999 !important;
+      align-items: flex-start !important; justify-content: center !important;
+      padding: 20px !important;
+    }
+    body.print-recibo .modal-overlay.open .modal {
+      box-shadow: none !important; max-width: 600px !important;
+      width: 100% !important; border: none !important;
+    }
+    body.print-recibo .modal-footer,
+    body.print-recibo .modal-header .modal-close { display: none !important; }
+
+    /* ── MODO 3: Imprimir historial de saldos (inline en página) ── */
+    body.print-historial #card-historial,
+    body.print-historial #card-historial * { visibility: visible !important; }
+    body.print-historial #card-historial {
+      position: fixed !important; inset: 0 !important;
+      background: #fff !important; padding: 20px 28px !important;
+      font-size: 11px !important; color: #000 !important;
+      z-index: 9999 !important; overflow: visible !important;
+    }
+    body.print-historial #card-historial .no-print { display: none !important; }
   }
 </style>
 </head>
@@ -1027,7 +1043,7 @@
       <button class="btn btn-danger btn-sm" onclick="borrarRecibo()">🗑 Borrar</button>
       <button class="btn btn-amber btn-sm" onclick="abrirEditarRecibo()">✏ Editar</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-ver-recibo')">Cerrar</button>
-      <button class="btn btn-primary" onclick="window.print()">🖨 Imprimir</button>
+      <button class="btn btn-primary" onclick="document.body.classList.add('print-recibo');window.print();setTimeout(()=>document.body.classList.remove('print-recibo'),1000)">🖨 Imprimir</button>
     </div>
   </div>
 </div>
@@ -1862,7 +1878,11 @@ function previewRecibo(id) {
   document.getElementById('recibo-content').innerHTML = buildReciboHTML(p);
 }
 
-function imprimirRecibo() { window.print(); }
+function imprimirRecibo() {
+  document.body.classList.add('print-recibo');
+  window.print();
+  setTimeout(() => document.body.classList.remove('print-recibo'), 1000);
+}
 
 // ═══════════════════════════════════════════════
 // MODAL PAGO
@@ -2617,7 +2637,9 @@ function printPerfilCliente(cid) {
       <div style="font-size:11px;color:#666">${codigo}</div>
     </div>
     ${body}`;
+  document.body.classList.add('print-area');
   window.print();
+  setTimeout(() => document.body.classList.remove('print-area'), 1000);
 }
 
 function verPagosCliente(cid) {
@@ -2839,7 +2861,9 @@ function printHistorial() {
       Parcelación Santa Teresita 2 · Historial generado automáticamente · ${new Date().toLocaleDateString('es-SV')}
     </div>`;
 
+  document.body.classList.add('print-historial');
   window.print();
+  setTimeout(() => document.body.classList.remove('print-historial'), 1000);
 }
 
 function cerrarHistorial() {
@@ -3099,7 +3123,9 @@ function printAmortizacion() {
       Parcelación Santa Teresita 2 · Tabla de amortización generada automáticamente · ${new Date().toLocaleDateString('es-SV')}
     </div>`;
 
+  document.body.classList.add('print-area');
   window.print();
+  setTimeout(() => document.body.classList.remove('print-area'), 1000);
 }
 
 // ═══════════════════════════════════════════════
