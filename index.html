@@ -1506,7 +1506,7 @@ const datosFinancieros = {
   "C-20": { propietario_id:10, valor:15000, reserva:500,  financiar:0,     tasa:0,      meses:0,   cuota:0 },
   "D-17": { propietario_id:17, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
   "D-19": { propietario_id:17, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
-  "F-1":  { propietario_id:23, valor:21500, reserva:1500, financiar:20000, tasa:0.105,  meses:0,   cuota:0 },
+  "F-1":  { propietario_id:23, valor:21500, reserva:1500, financiar:0,     tasa:0,      meses:0,   cuota:0 },
   "F-2":  { propietario_id:21, valor:15750, reserva:1500, financiar:14250, tasa:0.105,  meses:0,   cuota:0 },
   "F-3":  { propietario_id:21, valor:15750, reserva:1500, financiar:14250, tasa:0.105,  meses:0,   cuota:0 },
   "F-4":  { propietario_id:21, valor:15750, reserva:1500, financiar:14250, tasa:0.105,  meses:0,   cuota:0 },
@@ -1516,8 +1516,8 @@ const datosFinancieros = {
   "H-3":  { propietario_id:19, valor:15750, reserva:1500, financiar:14250, tasa:0.105,  meses:0,   cuota:0 },
   "H-4":  { propietario_id:19, valor:15750, reserva:1000, financiar:14750, tasa:0.105,  meses:0,   cuota:0 },
   "H-6":  { propietario_id:11, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
-  "I-1":  { propietario_id:22, valor:18750, reserva:750,  financiar:0,     tasa:0,      meses:0,   cuota:0 },
-  "I-2":  { propietario_id:22, valor:15750, reserva:750,  financiar:0,     tasa:0,      meses:0,   cuota:0 },
+  "I-1":  { propietario_id:22, valor:18750, reserva:0,    financiar:0,     tasa:0,      meses:0,   cuota:0 },
+  "I-2":  { propietario_id:22, valor:15750, reserva:0,    financiar:0,     tasa:0,      meses:0,   cuota:0 },
 };
 
 // Build merged lotes array (all 102 lots)
@@ -3095,7 +3095,7 @@ function buildAvisoHTML(c, loteInfo, loteId, proximaCuota, totalCuotas, diaPago,
   </style></head><body>
   <div class="header">
     <div class="logo-area">
-      <img src="${LOGO_BASE64}" alt="Logo">
+      <img src="${LOGO_BASE64}" alt="Logo" style="height:56px;width:auto;filter:invert(1) brightness(0)">
       <div class="contact">
         Tel/Wapp: +503 7969-2069<br>
         Km. 3, Calle a Tacuba, Ahuachapán<br>
