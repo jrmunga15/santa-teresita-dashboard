@@ -1658,7 +1658,13 @@ function filterPagos(v) { pagosFilter = v.toLowerCase(); renderPagos(); }
 function filterPagosMes(v) { pagosMesFilter = v; renderPagos(); }
 function renderPagos() {
   // populate mes filter
-  const meses = [...new Set(pagos.map(p => p.mes))].sort();
+  const MESES_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const parseMes = m => {
+    if (!m) return 0;
+    const [mon, yr] = m.toLowerCase().split(' ');
+    return parseInt(yr) * 12 + MESES_ES.indexOf(mon);
+  };
+  const meses = [...new Set(pagos.map(p => p.mes))].sort((a,b) => parseMes(a) - parseMes(b));
   const sel = document.getElementById('filter-mes');
   const curr = sel.value;
   sel.innerHTML = '<option value="">Todos los meses</option>' + meses.map(m => `<option value="${m}" ${m===curr?'selected':''}>${m}</option>`).join('');
@@ -1793,9 +1799,16 @@ function calcIntereses(saldoAnterior, tasaAnual) {
 
 function buildReciboCopy(p, c, loteInfo, esCopia = false) {
   const tasaAnual = loteInfo ? loteInfo.tasa : 0.105;
-  const saldoAnterior = p.saldo + p.monto; // saldo antes del pago
+
+  // For cuota 1/180 (or 1/44), saldo anterior = financiar (valor - reserva)
+  // For subsequent cuotas, derive from recorded saldo + monto
+  const esPrimeraCuota = p.concepto && /^1\/\d+$/.test(p.concepto);
+  const saldoAnterior = esPrimeraCuota && loteInfo?.financiar
+    ? loteInfo.financiar
+    : p.saldo + p.monto;
+
   const intereses = p.concepto?.includes('/') || p.concepto === 'Abono'
-    ? calcIntereses(p.saldo + p.monto, tasaAnual)
+    ? calcIntereses(saldoAnterior, tasaAnual)
     : 0;
   const abonoCapital = Math.round((p.monto - intereses) * 100) / 100;
   const nuevoSaldo = Math.round((saldoAnterior - abonoCapital) * 100) / 100;
