@@ -3030,33 +3030,17 @@ function guardarCliente() {
 // AVISO DE PAGO
 // ═══════════════════════════════════════════════
 function generarNombreArchivo(nombre, proximaCuota, totalCuotas) {
-  // Extract first apellido and first nombre
-  // Spanish names: "Roberto Antonio Rivas Gutierrez" → apellido=Rivas, nombre=Roberto
-  const partes = nombre.trim().split(/\s+/);
-  // Heuristic: if 4+ words, last two are apellidos, first two are nombres
-  // We want: primer_apellido + primer_nombre
-  let primerApellido, primerNombre;
-  if (partes.length >= 4) {
-    primerNombre   = partes[0];
-    primerApellido = partes[partes.length - 2]; // second-to-last = first apellido
-  } else if (partes.length === 3) {
-    primerNombre   = partes[0];
-    primerApellido = partes[1];
-  } else {
-    primerNombre   = partes[0] || 'Cliente';
-    primerApellido = partes[1] || '';
-  }
-
-  // Remove accents
-  const clean = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z]/g,'');
+  // Full name with spaces replaced by underscores, no accents
+  const clean = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z\s]/g,'').trim();
+  const nombreLimpio = clean(nombre).split(/\s+/).join('_');
 
   // Date ddmmyy
   const hoy = new Date();
-  const dd   = String(hoy.getDate()).padStart(2,'0');
-  const mm   = String(hoy.getMonth()+1).padStart(2,'0');
-  const yy   = String(hoy.getFullYear()).slice(-2);
+  const dd  = String(hoy.getDate()).padStart(2,'0');
+  const mm  = String(hoy.getMonth()+1).padStart(2,'0');
+  const yy  = String(hoy.getFullYear()).slice(-2);
 
-  return `${clean(primerApellido)}_${clean(primerNombre)}_aviso_${proximaCuota}de${totalCuotas}_${dd}${mm}${yy}.pdf`;
+  return `${nombreLimpio}_aviso_${proximaCuota}de${totalCuotas}_${dd}${mm}${yy}.pdf`;
 }
 
 function generarAvisoPago(cid, loteId) {
