@@ -10,7 +10,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, doc, getDocs, addDoc, setDoc, onSnapshot, writeBatch }
+  import { getFirestore, collection, doc, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, writeBatch }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -29,7 +29,7 @@
   // ── Expose to global scope so non-module scripts can use them ──
   window._db      = db;
   window._auth    = auth;
-  window._fbFns   = { collection, doc, getDocs, addDoc, setDoc, onSnapshot, writeBatch, signOut };
+  window._fbFns   = { collection, doc, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, writeBatch, signOut };
 
   // ── Auth state watcher ──
   onAuthStateChanged(auth, user => {
@@ -417,9 +417,31 @@
   .text-right { text-align: right; }
 
   @media print {
-    /* Hide everything except the amort print area */
-    body * { visibility: hidden !important; }
-    #amort-print-area, #amort-print-area * { visibility: visible !important; }
+    /* Hide UI chrome */
+    .sidebar, .topbar, .no-print,
+    .modal-overlay, #login-screen { display: none !important; }
+
+    body, #app-shell { visibility: visible !important; background: #fff !important; }
+
+    /* ── RECIBO (modal abierto) ── */
+    .modal-overlay.open {
+      display: block !important;
+      position: static !important;
+      background: none !important;
+    }
+    .modal-overlay.open .modal {
+      box-shadow: none !important;
+      max-width: 100% !important;
+      width: 100% !important;
+    }
+    .modal-footer { display: none !important; }
+    .modal-header .modal-close { display: none !important; }
+
+    /* ── AMORTIZACIÓN ── */
+    body * { visibility: hidden; }
+    #amort-print-area, #amort-print-area *,
+    .modal-overlay.open, .modal-overlay.open * { visibility: visible !important; }
+
     #amort-print-area {
       position: fixed !important;
       inset: 0 !important;
@@ -433,6 +455,15 @@
     #amort-print-area th { background: #f0ece6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     #amort-print-area .paid-row { background: #f0fff4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     #amort-print-area .current-row { background: #fdebd0 !important; font-weight: 700 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    /* ── RECIBO visible ── */
+    .recibo-wrap, .recibo-wrap * { visibility: visible !important; }
+    .recibo-wrap {
+      position: fixed !important;
+      inset: 0 !important;
+      background: #fff !important;
+      padding: 20px !important;
+    }
   }
 </style>
 </head>
@@ -1010,8 +1041,67 @@
     </div>
     <div class="modal-body" id="ver-recibo-body"></div>
     <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="borrarRecibo()">🗑 Borrar</button>
+      <button class="btn btn-amber btn-sm" onclick="abrirEditarRecibo()">✏ Editar</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-ver-recibo')">Cerrar</button>
       <button class="btn btn-primary" onclick="window.print()">🖨 Imprimir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Recibo -->
+<div class="modal-overlay" id="modal-editar-recibo">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <span class="modal-title">Editar Recibo</span>
+      <button class="modal-close" onclick="closeModal('modal-editar-recibo')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-recibo-id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Número de Recibo</label>
+          <input type="text" class="form-control" id="edit-recibo-num" placeholder="26000001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha</label>
+          <input type="date" class="form-control" id="edit-recibo-fecha">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Concepto</label>
+          <input type="text" class="form-control" id="edit-recibo-concepto" placeholder="Ej. 1/180, Reserva, Contado">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Forma de Pago</label>
+          <select class="form-control" id="edit-recibo-forma">
+            <option>Efectivo</option>
+            <option>Agrícola</option>
+            <option>Cuscatlán</option>
+            <option>Transferencia</option>
+            <option>Cheque</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Monto ($)</label>
+          <input type="number" class="form-control" id="edit-recibo-monto" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Saldo Pendiente ($)</label>
+          <input type="number" class="form-control" id="edit-recibo-saldo" step="0.01">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notas</label>
+        <input type="text" class="form-control" id="edit-recibo-notas" placeholder="Observaciones...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-editar-recibo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEdicionRecibo()">💾 Guardar cambios</button>
     </div>
   </div>
 </div>
@@ -1700,11 +1790,86 @@ function buildReciboHTML(p) {
   </div>`;
 }
 
+let _reciboActivoId = null;
+
 function verRecibo(id) {
   const p = pagos.find(x => x.id === id);
   if (!p) return;
+  _reciboActivoId = id;
   document.getElementById('ver-recibo-body').innerHTML = buildReciboHTML(p);
   openModal('modal-ver-recibo');
+}
+
+function abrirEditarRecibo() {
+  const p = pagos.find(x => x.id === _reciboActivoId);
+  if (!p) return;
+  document.getElementById('edit-recibo-id').value    = p.id;
+  document.getElementById('edit-recibo-num').value   = p.recibo || '';
+  document.getElementById('edit-recibo-fecha').value = p.fecha || '';
+  document.getElementById('edit-recibo-concepto').value = p.concepto || '';
+  document.getElementById('edit-recibo-forma').value = p.forma || 'Efectivo';
+  document.getElementById('edit-recibo-monto').value = p.monto || '';
+  document.getElementById('edit-recibo-saldo').value = p.saldo || '';
+  document.getElementById('edit-recibo-notas').value = p.notas || '';
+  closeModal('modal-ver-recibo');
+  openModal('modal-editar-recibo');
+}
+
+async function guardarEdicionRecibo() {
+  const id      = parseInt(document.getElementById('edit-recibo-id').value);
+  const idx     = pagos.findIndex(p => p.id === id);
+  if (idx < 0) return;
+
+  const fecha   = document.getElementById('edit-recibo-fecha').value;
+  const date    = new Date(fecha);
+  const mes     = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
+
+  const updated = {
+    ...pagos[idx],
+    recibo:   document.getElementById('edit-recibo-num').value.trim(),
+    fecha,
+    mes,
+    concepto: document.getElementById('edit-recibo-concepto').value.trim(),
+    forma:    document.getElementById('edit-recibo-forma').value,
+    monto:    parseFloat(document.getElementById('edit-recibo-monto').value) || 0,
+    saldo:    parseFloat(document.getElementById('edit-recibo-saldo').value) || 0,
+    notas:    document.getElementById('edit-recibo-notas').value.trim(),
+  };
+
+  // Save to Firestore if connected
+  if (window._db && pagos[idx]._docId) {
+    const { collection, doc, setDoc } = window._fbFns;
+    const ref = doc(collection(window._db, 'pagos'), pagos[idx]._docId);
+    await setDoc(ref, updated, { merge: true });
+  } else {
+    pagos[idx] = updated;
+  }
+
+  closeModal('modal-editar-recibo');
+  renderDashboard();
+  renderPagos();
+  renderRecibos();
+  alert('✅ Recibo actualizado.');
+}
+
+async function borrarRecibo() {
+  const p = pagos.find(x => x.id === _reciboActivoId);
+  if (!p) return;
+  if (!confirm(`¿Borrar el recibo ${p.recibo || '#'+p.id}?\n\nEsta acción no se puede deshacer.`)) return;
+
+  if (window._db && p._docId) {
+    const { collection, doc, deleteDoc } = window._fbFns;
+    await deleteDoc(doc(collection(window._db, 'pagos'), p._docId));
+  } else {
+    const idx = pagos.findIndex(x => x.id === _reciboActivoId);
+    if (idx >= 0) pagos.splice(idx, 1);
+  }
+
+  closeModal('modal-ver-recibo');
+  renderDashboard();
+  renderPagos();
+  renderRecibos();
+  alert('🗑 Recibo eliminado.');
 }
 
 function previewRecibo(id) {
