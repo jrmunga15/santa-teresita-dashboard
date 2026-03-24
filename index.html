@@ -5,6 +5,76 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sta. Teresita 2 — Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<!-- Firebase SDKs -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, collection, doc, getDocs, addDoc, setDoc, onSnapshot, writeBatch }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD6-OJpsyN6pUMlcQ0YnVuUIwnlXMaVXzY",
+    authDomain: "santa-teresita-2.firebaseapp.com",
+    projectId: "santa-teresita-2",
+    storageBucket: "santa-teresita-2.firebasestorage.app",
+    messagingSenderId: "397398707327",
+    appId: "1:397398707327:web:d23fd4605f320e8ec4834a"
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  // ── Expose to global scope so non-module scripts can use them ──
+  window._db      = db;
+  window._auth    = auth;
+  window._fbFns   = { collection, doc, getDocs, addDoc, setDoc, onSnapshot, writeBatch, signOut };
+
+  // ── Auth state watcher ──
+  onAuthStateChanged(auth, user => {
+    document.body.style.visibility = 'visible'; // reveal only after auth check
+    if (user) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app-shell').style.display = 'block';
+      document.getElementById('topbar-user').textContent = user.email;
+      window._currentUser = user;
+      window.initFirestoreListeners();
+    } else {
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('app-shell').style.display = 'none';
+      window._currentUser = null;
+    }
+  });
+
+  // ── Login handler ──
+  window.doLogin = async () => {
+    const email = document.getElementById('login-email').value.trim();
+    const pass  = document.getElementById('login-pass').value;
+    const errEl = document.getElementById('login-error');
+    const btn   = document.getElementById('login-btn');
+    errEl.textContent = '';
+    btn.textContent = 'Iniciando...';
+    btn.disabled = true;
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch(e) {
+      const msgs = {
+        'auth/invalid-credential': 'Correo o contraseña incorrectos.',
+        'auth/user-not-found':     'Usuario no encontrado.',
+        'auth/wrong-password':     'Contraseña incorrecta.',
+        'auth/too-many-requests':  'Demasiados intentos. Intenta más tarde.',
+      };
+      errEl.textContent = msgs[e.code] || 'Error al iniciar sesión.';
+      btn.textContent = 'Entrar';
+      btn.disabled = false;
+    }
+  };
+
+  window.doLogout = async () => {
+    await signOut(auth);
+  };
+</script>
 <style>
   :root {
     --bg: #f5f2ec;
@@ -366,7 +436,47 @@
   }
 </style>
 </head>
-<body>
+<body style="visibility:hidden">
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="login-screen" style="
+  display:flex; align-items:center; justify-content:center;
+  min-height:100vh; background:#f5f2ec;
+  font-family:'DM Sans',sans-serif;
+">
+  <div style="
+    background:#fff; border:1px solid #e8e2d9; border-radius:12px;
+    padding:40px 36px; width:100%; max-width:380px;
+    box-shadow:0 12px 40px rgba(26,22,18,0.12);
+  ">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-family:'DM Serif Display',serif;font-size:22px;color:#1a1612">Parcelación</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:22px;color:#2d6a4f">Sta. Teresita 2</div>
+      <div style="font-size:11px;color:#b0a898;letter-spacing:0.1em;text-transform:uppercase;margin-top:4px">Ahuachapán, El Salvador</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:11px;font-weight:600;color:#7a7060;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Correo electrónico</label>
+      <input id="login-email" type="email" placeholder="correo@ejemplo.com"
+        style="width:100%;padding:10px 12px;border:1px solid #e8e2d9;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;box-sizing:border-box"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="display:block;font-size:11px;font-weight:600;color:#7a7060;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Contraseña</label>
+      <input id="login-pass" type="password" placeholder="••••••••"
+        style="width:100%;padding:10px 12px;border:1px solid #e8e2d9;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;box-sizing:border-box"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div id="login-error" style="color:#c0392b;font-size:12px;margin-bottom:12px;min-height:16px"></div>
+    <button id="login-btn" onclick="doLogin()" style="
+      width:100%;padding:11px;background:#2d6a4f;color:#fff;border:none;
+      border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;
+      font-family:'DM Sans',sans-serif;
+    ">Entrar</button>
+  </div>
+</div>
+
+<!-- ═══ APP SHELL ═══ -->
+<div id="app-shell" style="display:none">
 
 <!-- SIDEBAR -->
 <nav class="sidebar">
@@ -412,6 +522,8 @@
   <div class="topbar">
     <span class="topbar-title" id="page-title">Dashboard</span>
     <div class="topbar-actions">
+      <span id="topbar-user" style="font-size:12px;color:var(--text-muted);margin-right:8px"></span>
+      <button class="btn btn-secondary btn-sm" onclick="doLogout()" style="margin-right:8px">Salir</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('modal-pago')">+ Registrar Pago</button>
     </div>
   </div>
@@ -1107,6 +1219,8 @@ let lotes = catalogoLotes.map(c => ({
 // Pagos — datos reales del Excel PAGOS_LOTEHABIENTES_v1.xlsx
 // Los pagos sin recibo del 27-30 mar 2026 se les asigna correlativo desde 26000062
 let pagos = [
+  // ── JUL 2025 ──
+  { id:0,  recibo:"25000001", fecha:"2025-07-08", cliente_id:1,  lote:"G-1",  concepto:"Contado",    monto:15000, saldo:0,           forma:"Efectivo",  mes:"Jul 2025" },
   // ── DIC 2025 ──
   { id:1,  recibo:"26000001", fecha:"2025-12-08", cliente_id:2,  lote:"A-12", concepto:"Reserva",    monto:500,   saldo:18000,       forma:"Efectivo",  mes:"Dic 2025" },
   { id:2,  recibo:"26000002", fecha:"2025-12-08", cliente_id:3,  lote:"A-13", concepto:"Reserva",    monto:500,   saldo:18000,       forma:"Efectivo",  mes:"Dic 2025" },
@@ -2848,9 +2962,232 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 });
 
 // ═══════════════════════════════════════════════
-// INIT
+// FIREBASE — Firestore sync
 // ═══════════════════════════════════════════════
-renderDashboard();
+window.initFirestoreListeners = async function() {
+  const db    = window._db;
+  const { collection, onSnapshot, getDocs } = window._fbFns;
+
+  // Show loading state
+  document.getElementById('page-title').textContent = 'Cargando datos...';
+
+  // ── 1. Check if DB is empty → seed with initial data ──
+  const clientesSnap = await getDocs(collection(db, 'clientes'));
+  if (clientesSnap.empty) {
+    await seedFirestore();
+  }
+
+  // ── 2. Real-time listeners ──
+  onSnapshot(collection(db, 'clientes'), snap => {
+    clientes = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+    renderDashboard();
+    renderClientes();
+  });
+
+  onSnapshot(collection(db, 'pagos'), snap => {
+    pagos = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+    renderDashboard();
+  });
+
+  onSnapshot(collection(db, 'lotes'), snap => {
+    if (!snap.empty) {
+      const firestoreLotes = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+      // Merge with catalogoLotes geometry
+      lotes = catalogoLotes.map(cl => {
+        const fl = firestoreLotes.find(l => l.id === cl.id);
+        return fl ? { ...cl, ...fl } : cl;
+      });
+    }
+    renderDashboard();
+  });
+};
+
+async function seedFirestore() {
+  const db = window._db;
+  const { collection, doc, writeBatch } = window._fbFns;
+  const batch = writeBatch(db);
+
+  // Seed clientes
+  clientes.forEach(c => {
+    const ref = doc(collection(db, 'clientes'));
+    batch.set(ref, c);
+  });
+
+  // Seed pagos
+  pagos.forEach(p => {
+    const ref = doc(collection(db, 'pagos'));
+    batch.set(ref, p);
+  });
+
+  // Seed lotes (only those with financial data)
+  lotes.filter(l => l.propietario_id || l.valor).forEach(l => {
+    const ref = doc(collection(db, 'lotes'));
+    batch.set(ref, l);
+  });
+
+  await batch.commit();
+  console.log('✅ Firestore seeded with initial data');
+}
+
+// ── Override registrarPago to save to Firestore ──
+const _origRegistrarPago = registrarPago;
+window.registrarPago = async function() {
+  const db = window._db;
+  const { collection, addDoc } = window._fbFns;
+  const cid    = parseInt(document.getElementById('pago-cliente').value);
+  const loteId = document.getElementById('pago-lote').value;
+  let concepto = document.getElementById('pago-concepto').value;
+  const forma  = document.getElementById('pago-forma').value;
+  const monto  = parseFloat(document.getElementById('pago-monto').value) || 0;
+  const saldo  = parseFloat(document.getElementById('pago-saldo').value) || 0;
+  const fecha  = document.getElementById('pago-fecha').value;
+  const notas  = document.getElementById('pago-notas').value;
+
+  if (!cid || !loteId || !fecha) {
+    if (!cid) { document.getElementById('pago-cliente-search').style.borderColor = 'var(--red)'; document.getElementById('pago-cliente-search').focus(); }
+    alert('Por favor selecciona un lote-habiente de la lista y completa todos los campos.');
+    return;
+  }
+
+  if (concepto === 'Plazo') {
+    const loteInfo = getLote(loteId);
+    const cuotasPagadas = pagos.filter(p => p.lote === loteId && p.concepto?.includes('/')).length;
+    const totalCuotas = loteInfo.meses || 180;
+    concepto = `${cuotasPagadas + 1}/${totalCuotas}`;
+  }
+
+  const renum = getNextReciboNum();
+  const date  = new Date(fecha);
+  const mes   = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
+
+  const nuevo = {
+    id: nextId++,
+    recibo: String(renum),
+    fecha, cliente_id: cid, lote: loteId,
+    concepto, monto, saldo, forma, mes, notas: notas || ''
+  };
+
+  await addDoc(collection(db, 'pagos'), nuevo);
+  closeModal('modal-pago');
+  alert(`✅ Pago registrado con Recibo No. ${renum}`);
+  setTimeout(() => verRecibo(nuevo.id), 200);
+};
+
+// ── Override guardarCliente to save to Firestore ──
+const _origGuardarCliente = guardarCliente;
+window.guardarCliente = async function() {
+  const db     = window._db;
+  const { collection, addDoc } = window._fbFns;
+  const nombre = document.getElementById('cli-nombre').value.trim();
+  if (!nombre) { alert('El nombre es obligatorio.'); return; }
+
+  const nextNum = clientes.length + 1;
+  const codigo  = 'LHPST-' + String(nextNum).padStart(4, '0');
+  const newId   = nextNum;
+
+  const nuevoCliente = {
+    id: newId, codigo, nombre,
+    dui:       document.getElementById('cli-dui').value.trim(),
+    tel:       document.getElementById('cli-tel').value.trim(),
+    ref:       document.getElementById('cli-ref').value.trim(),
+    benef:     document.getElementById('cli-benef').value.trim(),
+    benef_dui: document.getElementById('cli-benef-dui').value.trim(),
+    email:'', ocupacion:'', dir2:'', estado_civil:'', nacimiento:'',
+    dui_vence:'', dui_verificado:false, dui_foto_front:'', dui_foto_back:'',
+    clasificacion:'normal', docs_dui:false, docs_contrato:false, fecha_contrato:'',
+    origen_fondos:'', origen_fondos_detalle:'',
+  };
+
+  const loteId = document.getElementById('cli-lote').value;
+  const tipo   = document.getElementById('cli-tipo-venta').value;
+
+  if (loteId) {
+    const l        = getLote(loteId);
+    const reserva  = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? 900 : 500);
+    const valor    = l.valor || 18500;
+    const financiar = tipo === 'contado' ? 0 : valor - reserva;
+    const tasa     = 0.105;
+    const tasaMensual = tasa / 12;
+    const meses    = tipo === 'contado' ? 0 : 180;
+    const cuota    = tipo === 'contado' ? 0 :
+      Math.round(financiar * tasaMensual / (1 - Math.pow(1 + tasaMensual, -180)) * 100) / 100;
+
+    const loteIdx = lotes.findIndex(l => l.id === loteId);
+    if (loteIdx >= 0) {
+      const loteActualizado = { ...lotes[loteIdx],
+        propietario_id: newId, valor, reserva, financiar, tasa, meses, cuota,
+        estado_plano: tipo === 'contado' ? 'Vendido Contado' : 'Vendido a Plazo'
+      };
+      const { collection: col, doc, setDoc } = window._fbFns;
+      const loteRef = doc(col(db, 'lotes'), loteId);
+      await setDoc(loteRef, loteActualizado, { merge: true });
+    }
+  }
+
+  await addDoc(collection(db, 'clientes'), nuevoCliente);
+  closeModal('modal-cliente');
+  alert(`✅ Lote-habiente registrado: ${codigo} — ${nombre}`);
+};
+
+// ── Override guardarEdicionPerfil to save to Firestore ──
+const _origGuardarEdicion = guardarEdicionPerfil;
+window.guardarEdicionPerfil = async function(cid) {
+  const db  = window._db;
+  const { collection, doc, setDoc, getDocs } = window._fbFns;
+  const nombre = document.getElementById('edit-nombre').value.trim();
+  if (!nombre) {
+    document.getElementById('edit-nombre').style.borderColor = 'var(--red)';
+    document.getElementById('edit-nombre').focus();
+    alert('El nombre es obligatorio.');
+    return;
+  }
+
+  const idx = clientes.findIndex(c => c.id === cid);
+  if (idx < 0) return;
+
+  const fotoFront = clientes[idx].dui_foto_front;
+  const fotoBack  = clientes[idx].dui_foto_back;
+
+  const updated = {
+    ...clientes[idx],
+    nombre,
+    email:                document.getElementById('edit-email').value.trim(),
+    tel:                  document.getElementById('edit-tel').value.trim(),
+    estado_civil:         document.getElementById('edit-estado-civil').value,
+    nacimiento:           document.getElementById('edit-nacimiento').value,
+    ocupacion:            document.getElementById('edit-ocupacion').value.trim(),
+    ref:                  document.getElementById('edit-ref').value.trim(),
+    dir2:                 document.getElementById('edit-dir2').value.trim(),
+    dui:                  document.getElementById('edit-dui').value.trim(),
+    dui_vence:            document.getElementById('edit-dui-vence').value,
+    dui_verificado:       document.getElementById('edit-dui-verificado').checked,
+    dui_foto_front:       fotoFront,
+    dui_foto_back:        fotoBack,
+    benef:                document.getElementById('edit-benef').value.trim(),
+    benef_dui:            document.getElementById('edit-benef-dui').value.trim(),
+    clasificacion:        document.getElementById('edit-clasificacion').value,
+    fecha_contrato:       document.getElementById('edit-fecha-contrato').value,
+    docs_dui:             document.getElementById('edit-docs-dui').checked,
+    docs_contrato:        document.getElementById('edit-docs-contrato').checked,
+    origen_fondos:        document.getElementById('edit-origen-fondos').value,
+    origen_fondos_detalle:document.getElementById('edit-origen-fondos-detalle').value.trim(),
+  };
+
+  // Find Firestore doc ID
+  const docId = clientes[idx]._docId;
+  if (docId) {
+    const ref = doc(collection(db, 'clientes'), docId);
+    await setDoc(ref, updated, { merge: true });
+  }
+
+  renderDashboard();
+  verPerfilCliente(cid);
+};
+
+// ═══════════════════════════════════════════════
+// INIT — rendering happens via Firestore listeners after auth
+// ═══════════════════════════════════════════════
 </script>
+</div><!-- /app-shell -->
 </body>
 </html>
