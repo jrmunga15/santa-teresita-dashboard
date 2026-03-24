@@ -2391,9 +2391,13 @@ const PRINT_CSS = `
   }
 `;
 
-function printWindow(html) {
+function printWindow(html, isFullDoc = false) {
   const w = window.open('', '_blank', 'width=850,height=950');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"><style>' + PRINT_CSS + '</style></head><body>' + html + '</body></html>');
+  if (isFullDoc) {
+    w.document.write(html);
+  } else {
+    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"><style>' + PRINT_CSS + '</style></head><body>' + html + '</body></html>');
+  }
   w.document.close();
   w.focus();
   setTimeout(() => { w.print(); }, 800);
@@ -2820,6 +2824,132 @@ function guardarCliente() {
   alert(`✅ Lote-habiente registrado: ${codigo} — ${nombre}${loteId ? '\nLote ' + loteId + ' asignado.' : ''}`);
 }
 
+// ═══════════════════════════════════════════════
+// AVISO DE PAGO
+// ═══════════════════════════════════════════════
+function generarAvisoPago(cid, loteId) {
+  const c = getCliente(cid);
+  const loteInfo = getLote(loteId);
+  if (!c || !loteInfo) return;
+
+  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const cuotasPagadas = pagosDeLote.filter(p => p.concepto && /^\d+\/\d+$/.test(p.concepto)).length;
+  const proximaCuota = cuotasPagadas + 1;
+  const totalCuotas = loteInfo.meses || 180;
+  const incluirDespacho = proximaCuota <= 4;
+  const primerPago = pagosDeLote[0];
+  const diaPago = primerPago ? new Date(primerPago.fecha + 'T12:00:00').getDate() : '—';
+
+  const avisoHTML = buildAvisoHTML(c, loteInfo, loteId, proximaCuota, totalCuotas, diaPago, incluirDespacho);
+
+  // Show modal
+  document.getElementById('modal-aviso-body').innerHTML = `
+    <div style="margin-bottom:12px">Aviso listo para <strong>${c.nombre}</strong></div>
+    <div style="background:var(--surface2);border-radius:6px;padding:10px;font-size:12px;line-height:1.6">
+      📋 Lote <strong>${loteId}</strong> · Cuota <strong>${proximaCuota}/${totalCuotas}</strong> · $${loteInfo.cuota?.toFixed(2)}/mes<br>
+      ${incluirDespacho ? '⚖ Incluye aviso del Despacho López Silva' : ''}
+    </div>`;
+
+  document.getElementById('aviso-print-btn').onclick = () => {
+    closeModal('modal-aviso');
+    printWindow(avisoHTML, true);
+  };
+
+  document.getElementById('aviso-whatsapp-btn').onclick = () => {
+    const tel = c.tel ? c.tel.replace(/\D/g,'') : '';
+    const msg = encodeURIComponent(
+      `Estimado/a ${c.nombre}, le enviamos un cordial recordatorio de su cuota ${proximaCuota}/${totalCuotas} del Lote ${loteId} · Parcelación Santa Teresita II.\n\nMonto: $${loteInfo.cuota?.toFixed(2)}\nFecha: ${diaPago} de cada mes\n\nPara más detalles, comuníquese al 7969-2069.\n\nMuzzolo Inversiones S.A.S. de C.V.`
+    );
+    const url = tel ? `https://wa.me/503${tel}?text=${msg}` : `https://wa.me/?text=${msg}`;
+    window.open(url, '_blank');
+  };
+
+  openModal('modal-aviso');
+}
+
+function buildAvisoHTML(c, loteInfo, loteId, proximaCuota, totalCuotas, diaPago, incluirDespacho) {
+  const mesesNombres = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const hoy = new Date();
+  const fechaHoy = `${hoy.getDate()} de ${mesesNombres[hoy.getMonth()]} de ${hoy.getFullYear()}`;
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: Georgia, 'Times New Roman', serif; font-size:13px; color:#1a1612; background:#fff; padding:32px 40px; max-width:720px; margin:0 auto; line-height:1.7; }
+    .header { display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:16px; border-bottom:2px solid #1a1612; margin-bottom:24px; }
+    .logo-area { display:flex; align-items:center; gap:12px; }
+    .logo-area img { height:56px; width:auto; filter:invert(1) brightness(0); }
+    .contact { font-size:10.5px; color:#555; line-height:1.6; }
+    .fecha-ciudad { font-size:13px; margin-bottom:20px; }
+    .saludo { margin-bottom:16px; }
+    .cuerpo p { margin-bottom:12px; }
+    .cuentas { background:#f5f2ec; border-left:3px solid #2d6a4f; padding:12px 16px; margin:16px 0; border-radius:0 6px 6px 0; }
+    .cuentas table { width:100%; font-size:12px; }
+    .cuentas td { padding:3px 8px; }
+    .cuentas td:first-child { font-weight:600; color:#2d6a4f; width:130px; }
+    .despacho { background:#fdf8f0; border:1px solid #e8d9b5; border-radius:6px; padding:12px 16px; margin-top:16px; font-size:12px; }
+    .despacho-title { font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; color:#7a5c1a; margin-bottom:6px; }
+    .firma { margin-top:32px; font-size:12px; color:#555; }
+    .firma strong { display:block; font-size:13px; color:#1a1612; }
+    @media print { body { padding:16px 24px; } }
+  </style></head><body>
+  <div class="header">
+    <div class="logo-area">
+      <img src="${LOGO_BASE64}" alt="Logo">
+      <div class="contact">
+        Tel/Wapp: +503 7969-2069<br>
+        Km. 3, Calle a Tacuba, Ahuachapán<br>
+        muzzoloinversiones@yahoo.com
+      </div>
+    </div>
+    <div style="text-align:right;font-size:12px;color:#555">
+      <strong style="font-size:14px;color:#1a1612">AVISO DE PAGO</strong><br>
+      Cuota ${proximaCuota}/${totalCuotas}
+    </div>
+  </div>
+
+  <div class="fecha-ciudad">Ahuachapán, ${fechaHoy}.</div>
+
+  <div class="saludo">Estimado/a lote-habiente <strong>${c.nombre}</strong>:</div>
+
+  <div class="cuerpo">
+    <p>Por este medio le hacemos un cordial recordatorio de su próxima fecha de pago correspondiente al <strong>Lote No. ${loteId}</strong> de <strong>Parcelación Santa Teresita II</strong>, Ahuachapán.</p>
+
+    <p>Su cuota <strong>${proximaCuota}/${totalCuotas}</strong> por un monto de <strong>$${loteInfo.cuota?.toFixed(2)}</strong> vence el día <strong>${diaPago} de cada mes</strong>.</p>
+
+    <p>Para realizar su pago puede hacerlo en efectivo en nuestras oficinas o mediante depósito bancario a:</p>
+
+    <div class="cuentas">
+      <div style="font-weight:700;margin-bottom:8px;color:#2d6a4f">Depósito a favor de: Muzzolo Inversiones S.A.S. de C.V.</div>
+      <div style="font-size:11.5px;color:#555;margin-bottom:8px">Concepto: Abono a PST2 · Lote ${loteId}</div>
+      <table>
+        <tr><td>Bco. Agrícola</td><td>Cta. Corriente #572-033079-0</td></tr>
+        <tr><td>Bco. Cuscatlán</td><td>Cta. Corriente #351301000001895</td></tr>
+        <tr><td>BAC</td><td>Cta. Ahorro #129059036</td></tr>
+      </table>
+    </div>
+
+    <p style="font-size:12px;color:#555">Una vez realizado el depósito, envíenos la nota de abono por WhatsApp al <strong>7969-2069</strong> y le entregaremos su recibo y factura correspondientes.</p>
+
+    ${incluirDespacho ? `
+    <div class="despacho">
+      <div class="despacho-title">⚖ Aviso importante — Contrato de promesa de venta</div>
+      Recuerde que puede formalizar el contrato de promesa de venta de su lote. Para ello puede contactar al <strong>Despacho de Abogados López Silva</strong>, encargados de los aspectos legales del proyecto, quienes le ofrecerán una tarifa especial.<br><br>
+      <strong>Gustavo López</strong> — Presidente y Director Legal (Abogado y Notario Senior)<br>
+      WhatsApp: (503) 7923-5147 · Tel: (503) 2443-0445<br>
+      Email: despacholopezsilva@gmail.com<br>
+      2da. Ave. Sur #3-7, Costado Poniente del Parque Concordia, Ahuachapán.
+    </div>` : ''}
+  </div>
+
+  <div class="firma">
+    Muchas gracias por su preferencia.<br><br>
+    <strong>Muzzolo Inversiones S.A.S. de C.V.</strong>
+    Parcelación Santa Teresita 2 · "Tu pedacito de Cielo"
+  </div>
+</body></html>`;
+}
+
 function borrarPerfilCliente() {
   const cid = _perfilActivoCid;
   if (!cid) return;
@@ -2990,7 +3120,10 @@ function verPerfilCliente(cid) {
           <span style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--accent)">Lote ${loteId}</span>
           <span style="margin-left:10px;font-size:12px;color:var(--text-muted)">${loteInfo.area_m2||''}m²</span>
         </div>
-        <span class="badge ${loteInfo.estado_plano==='Vendido Contado'?'badge-amber':loteInfo.estado_plano==='Vendido a Plazo'?'badge-green':'badge-gray'}">${loteInfo.estado_plano||'—'}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${tienePlazo ? `<button class="btn btn-secondary btn-sm" onclick="generarAvisoPago(${_perfilActivoCid},'${loteId}')">📨 Aviso de Pago</button>` : ''}
+          <span class="badge ${loteInfo.estado_plano==='Vendido Contado'?'badge-amber':loteInfo.estado_plano==='Vendido a Plazo'?'badge-green':'badge-gray'}">${loteInfo.estado_plano||'—'}</span>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:${loteInfo.meses>0?'12px':'0'}">
         <div style="background:var(--surface2);border-radius:6px;padding:10px">
@@ -3942,6 +4075,22 @@ window.guardarEdicionPerfil = async function(cid) {
 
 <!-- Mobile FAB: Registrar Pago -->
 <button class="fab-pago" onclick="openModal('modal-pago')" title="Registrar Pago">+</button>
+
+<!-- Modal Aviso de Pago -->
+<div class="modal-overlay" id="modal-aviso">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title">📨 Aviso de Pago</span>
+      <button class="modal-close" onclick="closeModal('modal-aviso')">×</button>
+    </div>
+    <div class="modal-body" id="modal-aviso-body" style="font-size:13px;color:var(--text-muted)"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-aviso')">Cancelar</button>
+      <button class="btn btn-secondary" id="aviso-whatsapp-btn">💬 WhatsApp</button>
+      <button class="btn btn-primary" id="aviso-print-btn">🖨 Imprimir</button>
+    </div>
+  </div>
+</div>
 
 </div><!-- /app-shell -->
 </body>
