@@ -701,15 +701,18 @@
 
       <div class="card">
         <div class="card-header">
-          <span class="card-title">Últimos Pagos Registrados</span>
-          <button class="btn btn-secondary btn-sm" onclick="navigate('pagos')">Ver todos →</button>
+          <span class="card-title">Próximos Pagos</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <select class="form-control" id="proximos-mes-sel" onchange="renderProximosPagos()" style="height:32px;padding:0 10px;font-size:12px;width:140px">
+            </select>
+          </div>
         </div>
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>Recibo</th><th>Lote-habiente</th><th>Lote</th><th>Concepto</th><th>Monto</th><th>Forma Pago</th><th>Fecha</th>
+              <th>Lote-habiente</th><th>Lote</th><th>Cuota</th><th>Monto</th><th>Fecha Límite</th><th>Estado</th><th></th>
             </tr></thead>
-            <tbody id="tbl-recent-pagos"></tbody>
+            <tbody id="tbl-proximos-pagos"></tbody>
           </table>
         </div>
       </div>
@@ -1865,20 +1868,7 @@ function renderDashboard() {
   const moraCount = clientes.filter(c => mesesSinPagar(c.id) >= 2).length;
   document.getElementById('stat-mora').textContent = moraCount;
 
-  const recent = [...pagos].sort((a,b) => (b.recibo||'').localeCompare(a.recibo||'')).slice(0,8);
-  const tbody = document.getElementById('tbl-recent-pagos');
-  tbody.innerHTML = recent.map(p => {
-    const c = getCliente(p.cliente_id);
-    return `<tr>
-      <td><span style="font-weight:600;color:var(--accent);">${p.recibo || '<span style="color:var(--text-light);font-style:italic;font-size:11px">Sin recibo</span>'}</span></td>
-      <td>${c.nombre||'—'}</td>
-      <td><span style="font-weight:500">${p.lote}</span></td>
-      <td>${badge(p.concepto)}</td>
-      <td style="font-weight:600">${fmt(p.monto)}</td>
-      <td>${p.forma}</td>
-      <td>${fmtDate(p.fecha)}</td>
-    </tr>`;
-  }).join('');
+  initProximosPagos();
 
   // ── Recibido por mes ──
   const MESES_ES2 = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -1911,6 +1901,98 @@ function renderDashboard() {
           </div>
         </div>`;
   }
+}
+
+// ═══════════════════════════════════════════════
+// PRÓXIMOS PAGOS
+// ═══════════════════════════════════════════════
+function initProximosPagos() {
+  const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+  // Build list of upcoming payments for all plazo lotes
+  const hoy = new Date();
+  const proximosPagos = [];
+
+  lotes.filter(l => l.meses > 0 && l.propietario_id).forEach(loteInfo => {
+    const loteId = loteInfo.id;
+    const c = getCliente(loteInfo.propietario_id);
+    if (!c) return;
+
+    const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
+    const cuotasPagadas = pagosDeLote.filter(p => p.concepto && /^\d+\/\d+$/.test(p.concepto)).length;
+    if (cuotasPagadas >= loteInfo.meses) return; // fully paid
+
+    // Get payment day from first payment
+    const primerPago = pagosDeLote[0];
+    if (!primerPago) return;
+    const diaPago = new Date(primerPago.fecha + 'T12:00:00').getDate();
+
+    // Next cuota = cuotasPagadas + 1, due next month on diaPago
+    const proximaCuota = cuotasPagadas + 1;
+
+    // Figure out the due date: start from reserva date, add proximaCuota months
+    const reservaFecha = new Date(primerPago.fecha + 'T12:00:00');
+    const dueDate = new Date(reservaFecha.getFullYear(), reservaFecha.getMonth() + proximaCuota, diaPago);
+
+    const mesKey = `${MESES[dueDate.getMonth()]} ${dueDate.getFullYear()}`;
+    const diasRestantes = Math.round((dueDate - hoy) / (1000*60*60*24));
+
+    proximosPagos.push({ c, loteInfo, loteId, proximaCuota, dueDate, mesKey, diasRestantes });
+  });
+
+  // Build month options
+  const mesesUnicos = [...new Set(proximosPagos.map(p => p.mesKey))].sort((a,b) => {
+    const parse = m => { const [mon,yr] = m.toLowerCase().split(' '); return parseInt(yr)*12+MESES.indexOf(mon); };
+    return parse(a) - parse(b);
+  });
+
+  const sel = document.getElementById('proximos-mes-sel');
+  const curr = sel?.value;
+  if (sel) {
+    sel.innerHTML = '<option value="">Todos los meses</option>' +
+      mesesUnicos.map(m => `<option value="${m}" ${m===curr?'selected':''}>${m}</option>`).join('');
+  }
+
+  // Store for renderProximosPagos
+  window._proximosPagos = proximosPagos;
+  renderProximosPagos();
+}
+
+function renderProximosPagos() {
+  const filtroMes = document.getElementById('proximos-mes-sel')?.value || '';
+  const lista = (window._proximosPagos || [])
+    .filter(p => !filtroMes || p.mesKey === filtroMes)
+    .sort((a,b) => a.dueDate - b.dueDate);
+
+  const tbody = document.getElementById('tbl-proximos-pagos');
+  if (!tbody) return;
+
+  if (lista.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">No hay pagos próximos para este período.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(({ c, loteInfo, loteId, proximaCuota, dueDate, diasRestantes }) => {
+    const dd = String(dueDate.getDate()).padStart(2,'0');
+    const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const fechaStr = `${dd}/${MESES[dueDate.getMonth()]}/${dueDate.getFullYear()}`;
+
+    let estadoBadge;
+    if (diasRestantes < 0)       estadoBadge = `<span class="badge badge-red">Vencido (${Math.abs(diasRestantes)}d)</span>`;
+    else if (diasRestantes <= 5)  estadoBadge = `<span class="badge badge-red">🔴 ${diasRestantes}d</span>`;
+    else if (diasRestantes <= 10) estadoBadge = `<span class="badge badge-amber">⚠ ${diasRestantes}d</span>`;
+    else                          estadoBadge = `<span class="badge badge-green">${diasRestantes}d</span>`;
+
+    return `<tr>
+      <td style="font-weight:500">${c.nombre||'—'}</td>
+      <td><strong>${loteId}</strong></td>
+      <td>${badge(proximaCuota+'/'+loteInfo.meses)}</td>
+      <td style="font-weight:600">${fmt(loteInfo.cuota)}</td>
+      <td>${fechaStr}</td>
+      <td>${estadoBadge}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="verPerfilCliente(${c.id})">Ver perfil</button></td>
+    </tr>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════════
@@ -3121,7 +3203,7 @@ function verPerfilCliente(cid) {
           <span style="margin-left:10px;font-size:12px;color:var(--text-muted)">${loteInfo.area_m2||''}m²</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          ${tienePlazo ? `<button class="btn btn-secondary btn-sm" onclick="generarAvisoPago(${_perfilActivoCid},'${loteId}')">📨 Aviso de Pago</button>` : ''}
+          ${tienePlazo ? `<button class="btn btn-secondary btn-sm" onclick="generarAvisoPago(${cid},'${loteId}')">📨 Aviso de Pago</button>` : ''}
           <span class="badge ${loteInfo.estado_plano==='Vendido Contado'?'badge-amber':loteInfo.estado_plano==='Vendido a Plazo'?'badge-green':'badge-gray'}">${loteInfo.estado_plano||'—'}</span>
         </div>
       </div>
