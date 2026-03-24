@@ -6,6 +6,8 @@
 <title>Sta. Teresita 2 — Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
 <!-- Firebase SDKs -->
+<!-- PDF generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
@@ -715,7 +717,7 @@
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px" id="historial-sub"></div>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn btn-secondary btn-sm no-print" onclick="printHistorial()">🖨 Imprimir historial</button>
+            <button class="btn btn-secondary btn-sm no-print" onclick="printHistorial()">📄 Descargar PDF</button>
             <button class="btn btn-secondary btn-sm" onclick="cerrarHistorial()">✕ Cerrar</button>
           </div>
         </div>
@@ -739,7 +741,7 @@
             <option value="">— Seleccionar lote —</option>
           </select>
         </div>
-        <button class="btn btn-secondary btn-sm no-print" onclick="printAmortizacion()">🖨 Imprimir tabla</button>
+        <button class="btn btn-secondary btn-sm no-print" onclick="printAmortizacion()">📄 Descargar PDF</button>
       </div>
 
       <!-- Summary cards -->
@@ -982,7 +984,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-generar-recibo')">Cerrar</button>
-      <button class="btn btn-primary" onclick="imprimirRecibo()">🖨 Imprimir Recibo</button>
+      <button class="btn btn-primary" onclick="imprimirRecibo()">📄 Descargar PDF</button>
     </div>
   </div>
 </div>
@@ -999,7 +1001,7 @@
       <button class="btn btn-danger btn-sm" onclick="borrarRecibo()">🗑 Borrar</button>
       <button class="btn btn-amber btn-sm" onclick="abrirEditarRecibo()">✏ Editar</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-ver-recibo')">Cerrar</button>
-      <button class="btn btn-primary" onclick="imprimirRecibo()">🖨 Imprimir</button>
+      <button class="btn btn-primary" onclick="imprimirRecibo()">📄 Descargar PDF</button>
     </div>
   </div>
 </div>
@@ -1615,7 +1617,7 @@ function renderRecibos() {
       <td style="font-weight:600">${fmt(p.monto)}</td>
       <td>${p.forma}</td>
       <td>
-        <button class="btn btn-amber btn-sm" onclick="verRecibo(${p.id})">🖨 Imprimir</button>
+        <button class="btn btn-amber btn-sm" onclick="verRecibo(${p.id})">📄 Descargar PDF</button>
       </td>
     </tr>`;
   }).join('');
@@ -1835,60 +1837,74 @@ function previewRecibo(id) {
 }
 
 // ═══════════════════════════════════════════════
-// PRINT — ventana limpia para cada tipo
+// PDF — genera y descarga un PDF limpio
 // ═══════════════════════════════════════════════
-function printWindow(html, extraCss='') {
-  const w = window.open('', '_blank', 'width=800,height=900');
-  w.document.write(`<!DOCTYPE html><html><head>
-    <meta charset="UTF-8">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
-    <style>
-      * { box-sizing:border-box; margin:0; padding:0; }
-      body { font-family:'DM Sans',sans-serif; font-size:11px; color:#000; background:#fff; padding:20px 28px; }
-      table { width:100%; border-collapse:collapse; }
-      .badge { display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500; }
-      .badge-green { background:#d8f3dc;color:#2d6a4f; }
-      .badge-amber { background:#fdebd0;color:#e07b39; }
-      .badge-blue  { background:#dbeafe;color:#1d6fa4; }
-      .badge-gray  { background:#f0ece6;color:#7a7060; }
-      .badge-red   { background:#fdecea;color:#c0392b; }
-      .paid-row    { background:#f0fff4; }
-      .current-row { background:#fdebd0; font-weight:700; }
-      th { background:#f0ece6; }
-      ${extraCss}
-    </style>
-  </head><body>${html}</body></html>`);
-  w.document.close();
-  w.focus();
-  setTimeout(() => { w.print(); w.close(); }, 600);
+const PDF_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'DM Sans',sans-serif; font-size:11px; color:#000; background:#fff; }
+  table { width:100%; border-collapse:collapse; }
+  .badge { display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500; }
+  .badge-green { background:#d8f3dc;color:#2d6a4f; }
+  .badge-amber { background:#fdebd0;color:#e07b39; }
+  .badge-blue  { background:#dbeafe;color:#1d6fa4; }
+  .badge-gray  { background:#f0ece6;color:#7a7060; }
+  .badge-red   { background:#fdecea;color:#c0392b; }
+  .paid-row    { background:#f0fff4; }
+  .current-row { background:#fdebd0; font-weight:700; }
+  th { background:#f0ece6; }
+  button, .no-print { display:none !important; }
+  img { max-width:140px; }
+`;
+
+function generarPDF(html, nombre, orientacion='portrait') {
+  const contenedor = document.createElement('div');
+  contenedor.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;padding:28px 32px;font-family:DM Sans,sans-serif;font-size:11px;color:#000';
+  contenedor.innerHTML = `<style>${PDF_CSS}</style>${html}`;
+  document.body.appendChild(contenedor);
+
+  const opt = {
+    margin:       [10, 10, 10, 10],
+    filename:     nombre + '.pdf',
+    image:        { type:'jpeg', quality:0.98 },
+    html2canvas:  { scale:2, useCORS:true, logging:false },
+    jsPDF:        { unit:'mm', format:'letter', orientation },
+    pagebreak:    { mode:['avoid-all','css','legacy'] },
+  };
+
+  html2pdf().set(opt).from(contenedor).save().then(() => {
+    document.body.removeChild(contenedor);
+  });
 }
 
 function imprimirRecibo() {
-  const body = document.getElementById('ver-recibo-body').innerHTML;
-  printWindow(body);
+  const p = pagos.find(x => x.id === _reciboActivoId);
+  const nombre = p ? `Recibo-${p.recibo||p.id}` : 'Recibo';
+  generarPDF(document.getElementById('ver-recibo-body').innerHTML, nombre);
 }
 
 function printPerfilCliente(cid) {
+  const c      = getCliente(cid);
   const titulo = document.getElementById('perfil-titulo').textContent;
   const codigo = document.getElementById('perfil-codigo').textContent;
   const body   = document.getElementById('perfil-body').innerHTML;
-  printWindow(`
+  generarPDF(`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:2px solid #2d6a4f;padding-bottom:10px">
       <div>
-        <div style="font-size:16px;font-weight:700;color:#2d6a4f">Parcelación Santa Teresita 2</div>
-        <div style="font-size:11px;color:#666">Muzzolo Inversiones S.A.S. de C.V. · muzzoloinversiones@yahoo.com</div>
+        <div style="font-size:15px;font-weight:700;color:#2d6a4f">Parcelación Santa Teresita 2</div>
+        <div style="font-size:10px;color:#666">Muzzolo Inversiones S.A.S. de C.V. · muzzoloinversiones@yahoo.com</div>
       </div>
       <div style="text-align:right">
-        <div style="font-size:14px;font-weight:700">PERFIL DE LOTE-HABIENTE</div>
-        <div style="font-size:11px;color:#666">Impreso: ${new Date().toLocaleDateString('es-SV')}</div>
+        <div style="font-size:13px;font-weight:700">PERFIL DE LOTE-HABIENTE</div>
+        <div style="font-size:10px;color:#666">Impreso: ${new Date().toLocaleDateString('es-SV')}</div>
       </div>
     </div>
     <div style="margin-bottom:12px">
-      <div style="font-size:15px;font-weight:700">${titulo}</div>
-      <div style="font-size:11px;color:#666">${codigo}</div>
+      <div style="font-size:14px;font-weight:700">${titulo}</div>
+      <div style="font-size:10px;color:#666">${codigo}</div>
     </div>
     ${body}`,
-    `.no-print, button { display:none !important; } img { max-width:120px; }`
+    `Perfil-${c.codigo||cid}`
   );
 }
 
@@ -1897,39 +1913,39 @@ function printHistorial() {
   const sub     = document.getElementById('historial-sub').textContent;
   const totales = document.getElementById('historial-totales').innerHTML;
   const tbody   = document.getElementById('tbl-historial').innerHTML;
-  printWindow(`
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;border-bottom:2px solid #2d6a4f;padding-bottom:10px">
+  generarPDF(`
+    <div style="display:flex;justify-content:space-between;margin-bottom:14px;border-bottom:2px solid #2d6a4f;padding-bottom:10px">
       <div>
-        <div style="font-size:16px;font-weight:700;color:#2d6a4f">Parcelación Santa Teresita 2</div>
-        <div style="font-size:11px;color:#666">Muzzolo Inversiones S.A.S. de C.V. · muzzoloinversiones@yahoo.com · (503) 7969-2069</div>
+        <div style="font-size:15px;font-weight:700;color:#2d6a4f">Parcelación Santa Teresita 2</div>
+        <div style="font-size:10px;color:#666">Muzzolo Inversiones · muzzoloinversiones@yahoo.com · (503) 7969-2069</div>
       </div>
       <div style="text-align:right">
-        <div style="font-size:14px;font-weight:700">HISTORIAL DE PAGOS</div>
-        <div style="font-size:11px;color:#666">Impreso: ${new Date().toLocaleDateString('es-SV')}</div>
+        <div style="font-size:13px;font-weight:700">HISTORIAL DE PAGOS</div>
+        <div style="font-size:10px;color:#666">Impreso: ${new Date().toLocaleDateString('es-SV')}</div>
       </div>
     </div>
     <div style="margin-bottom:10px">
-      <div style="font-size:14px;font-weight:700">${title}</div>
-      <div style="font-size:11px;color:#555;margin-top:2px">${sub}</div>
+      <div style="font-size:13px;font-weight:700">${title}</div>
+      <div style="font-size:10px;color:#555;margin-top:2px">${sub}</div>
     </div>
-    <table style="font-size:10px;margin-bottom:10px">
-      <thead><tr style="background:#f0ece6">
-        <th style="border:1px solid #ddd;padding:4px 6px">#</th>
-        <th style="border:1px solid #ddd;padding:4px 6px">Recibo</th>
-        <th style="border:1px solid #ddd;padding:4px 6px">Fecha</th>
-        <th style="border:1px solid #ddd;padding:4px 6px">Concepto</th>
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Monto</th>
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Saldo Anterior</th>
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Intereses</th>
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Abono Capital</th>
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Nuevo Saldo</th>
-        <th style="border:1px solid #ddd;padding:4px 6px">Forma Pago</th>
+    <table style="font-size:9px;margin-bottom:10px">
+      <thead><tr>
+        <th style="border:1px solid #ddd;padding:3px 5px">#</th>
+        <th style="border:1px solid #ddd;padding:3px 5px">Recibo</th>
+        <th style="border:1px solid #ddd;padding:3px 5px">Fecha</th>
+        <th style="border:1px solid #ddd;padding:3px 5px">Concepto</th>
+        <th style="border:1px solid #ddd;padding:3px 5px;text-align:right">Monto</th>
+        <th style="border:1px solid #ddd;padding:3px 5px;text-align:right">Saldo Ant.</th>
+        <th style="border:1px solid #ddd;padding:3px 5px;text-align:right">Intereses</th>
+        <th style="border:1px solid #ddd;padding:3px 5px;text-align:right">Capital</th>
+        <th style="border:1px solid #ddd;padding:3px 5px;text-align:right">Nuevo Saldo</th>
+        <th style="border:1px solid #ddd;padding:3px 5px">Forma</th>
       </tr></thead>
       <tbody>${tbody}</tbody>
     </table>
-    <div style="display:flex;gap:20px;background:#f5f2ec;padding:10px 12px;border-radius:6px;font-size:11px;flex-wrap:wrap">${totales}</div>
-    <div style="margin-top:10px;font-size:9px;color:#aaa;text-align:center">Parcelación Santa Teresita 2 · Historial generado automáticamente · ${new Date().toLocaleDateString('es-SV')}</div>
-  `);
+    <div style="display:flex;gap:16px;background:#f5f2ec;padding:8px 10px;border-radius:4px;font-size:10px;flex-wrap:wrap">${totales}</div>
+    <div style="margin-top:8px;font-size:8px;color:#aaa;text-align:center">Parcelación Santa Teresita 2 · ${new Date().toLocaleDateString('es-SV')}</div>
+  `, `Historial-${title.replace(/[^a-zA-Z0-9-]/g,'_')}`, 'landscape');
 }
 
 function printAmortizacion() {
@@ -1950,58 +1966,59 @@ function printAmortizacion() {
     const [mes, sa, cuota, interes, capital, saldo] = r;
     const isPaid = mes <= cuotasPagadas;
     const isCurrent = mes === cuotasPagadas + 1;
-    const cls = isCurrent ? 'current-row' : isPaid ? 'paid-row' : '';
-    return `<tr class="${cls}">
-      <td style="text-align:center;border:1px solid #ddd;padding:3px 6px">${mes}</td>
-      <td style="text-align:center;border:1px solid #ddd;padding:3px 6px">${getFechaCuota(loteId, mes)}</td>
-      <td style="text-align:right;border:1px solid #ddd;padding:3px 6px">${sa != null ? fmt(sa) : '—'}</td>
-      <td style="text-align:right;border:1px solid #ddd;padding:3px 6px;font-weight:600">${cuota != null ? fmt(cuota) : '—'}</td>
-      <td style="text-align:right;border:1px solid #ddd;padding:3px 6px">${interes != null ? '$'+interes.toFixed(2) : '—'}</td>
-      <td style="text-align:right;border:1px solid #ddd;padding:3px 6px">${capital != null ? '$'+capital.toFixed(2) : '—'}</td>
-      <td style="text-align:right;border:1px solid #ddd;padding:3px 6px;font-weight:600">${saldo != null ? fmt(Math.max(0,saldo)) : '—'}</td>
-      <td style="text-align:center;border:1px solid #ddd;padding:3px 6px">${isCurrent ? '← Próxima' : isPaid ? '✓' : ''}</td>
+    const bg = isCurrent ? 'background:#fdebd0;font-weight:700' : isPaid ? 'background:#f0fff4;color:#555' : '';
+    return `<tr style="${bg}">
+      <td style="text-align:center;border:1px solid #ddd;padding:2px 4px">${mes}</td>
+      <td style="text-align:center;border:1px solid #ddd;padding:2px 4px">${getFechaCuota(loteId, mes)}</td>
+      <td style="text-align:right;border:1px solid #ddd;padding:2px 4px">${sa != null ? fmt(sa) : '—'}</td>
+      <td style="text-align:right;border:1px solid #ddd;padding:2px 4px;font-weight:600">${cuota != null ? fmt(cuota) : '—'}</td>
+      <td style="text-align:right;border:1px solid #ddd;padding:2px 4px">${interes != null ? '$'+interes.toFixed(2) : '—'}</td>
+      <td style="text-align:right;border:1px solid #ddd;padding:2px 4px">${capital != null ? '$'+capital.toFixed(2) : '—'}</td>
+      <td style="text-align:right;border:1px solid #ddd;padding:2px 4px;font-weight:600">${saldo != null ? fmt(Math.max(0,saldo)) : '—'}</td>
+      <td style="text-align:center;border:1px solid #ddd;padding:2px 4px;font-size:9px">${isCurrent ? '← Próxima' : isPaid ? '✓' : ''}</td>
     </tr>`;
   }).join('');
 
-  printWindow(`
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:2px solid #2d6a4f;padding-bottom:10px">
+  generarPDF(`
+    <div style="display:flex;justify-content:space-between;margin-bottom:12px;border-bottom:2px solid #2d6a4f;padding-bottom:8px">
       <div>
-        <div style="font-size:16px;font-weight:700;color:#2d6a4f">Parcelación Santa Teresita 2</div>
-        <div style="font-size:11px;color:#666">Ahuachapán, El Salvador · muzzoloinversiones@yahoo.com</div>
+        <div style="font-size:15px;font-weight:700;color:#2d6a4f">Parcelación Santa Teresita 2</div>
+        <div style="font-size:10px;color:#666">Ahuachapán, El Salvador · muzzoloinversiones@yahoo.com</div>
       </div>
       <div style="text-align:right">
-        <div style="font-size:14px;font-weight:700">TABLA DE AMORTIZACIÓN</div>
-        <div style="font-size:11px;color:#666">Lote ${loteId} · ${c ? c.nombre : ''}</div>
-        <div style="font-size:11px;color:#666">Impreso: ${new Date().toLocaleDateString('es-SV')}</div>
+        <div style="font-size:13px;font-weight:700">TABLA DE AMORTIZACIÓN</div>
+        <div style="font-size:10px;color:#666">Lote ${loteId} · ${c ? c.nombre : ''}</div>
+        <div style="font-size:10px;color:#666">Impreso: ${new Date().toLocaleDateString('es-SV')}</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;font-size:10px">
-      <div style="border:1px solid #ddd;padding:6px;border-radius:4px"><div style="color:#666">Valor del Lote</div><div style="font-weight:700">${fmt(loteInfo.valor)}</div></div>
-      <div style="border:1px solid #ddd;padding:6px;border-radius:4px"><div style="color:#666">Monto Financiado</div><div style="font-weight:700">${fmt(loteInfo.financiar)}</div></div>
-      <div style="border:1px solid #ddd;padding:6px;border-radius:4px"><div style="color:#666">Tasa Anual</div><div style="font-weight:700">${(loteInfo.tasa*100).toFixed(2)}%</div></div>
-      <div style="border:1px solid #ddd;padding:6px;border-radius:4px"><div style="color:#666">Cuota Mensual</div><div style="font-weight:700">${fmt(loteInfo.cuota)}</div></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;font-size:9px">
+      <div style="border:1px solid #ddd;padding:5px;border-radius:3px"><div style="color:#666">Valor del Lote</div><div style="font-weight:700">${fmt(loteInfo.valor)}</div></div>
+      <div style="border:1px solid #ddd;padding:5px;border-radius:3px"><div style="color:#666">Monto Financiado</div><div style="font-weight:700">${fmt(loteInfo.financiar)}</div></div>
+      <div style="border:1px solid #ddd;padding:5px;border-radius:3px"><div style="color:#666">Tasa Anual</div><div style="font-weight:700">${(loteInfo.tasa*100).toFixed(2)}%</div></div>
+      <div style="border:1px solid #ddd;padding:5px;border-radius:3px"><div style="color:#666">Cuota Mensual</div><div style="font-weight:700">${fmt(loteInfo.cuota)}</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;font-size:10px">
-      <div style="background:#f0fff4;border:1px solid #95d5b2;padding:6px;border-radius:4px"><div style="color:#2d6a4f">Cuotas pagadas</div><div style="font-weight:700;font-size:13px">${cuotasPagadas} / 180</div></div>
-      <div style="background:#fdebd0;border:1px solid #f5c88a;padding:6px;border-radius:4px"><div style="color:#7a4a1a">Capital amortizado</div><div style="font-weight:700;font-size:13px">${fmt(totalCapital)}</div></div>
-      <div style="background:#fdecea;border:1px solid #f5a9a3;padding:6px;border-radius:4px"><div style="color:#7a1a1a">Saldo pendiente</div><div style="font-weight:700;font-size:13px">${fmt(saldoActual)}</div></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;font-size:9px">
+      <div style="background:#f0fff4;border:1px solid #95d5b2;padding:5px;border-radius:3px"><div style="color:#2d6a4f">Cuotas pagadas</div><div style="font-weight:700;font-size:12px">${cuotasPagadas} / 180</div></div>
+      <div style="background:#fdebd0;border:1px solid #f5c88a;padding:5px;border-radius:3px"><div style="color:#7a4a1a">Capital amortizado</div><div style="font-weight:700;font-size:12px">${fmt(totalCapital)}</div></div>
+      <div style="background:#fdecea;border:1px solid #f5a9a3;padding:5px;border-radius:3px"><div style="color:#7a1a1a">Saldo pendiente</div><div style="font-weight:700;font-size:12px">${fmt(saldoActual)}</div></div>
     </div>
-    <table style="font-size:10px">
-      <thead><tr style="background:#f0ece6">
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:center">N° Cuota</th>
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:center">Fecha de Pago</th>
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Saldo Anterior</th>
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Cuota</th>
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Intereses</th>
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Abono Capital</th>
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Nuevo Saldo</th>
-        <th style="border:1px solid #ddd;padding:4px 6px;text-align:center">Estado</th>
+    <table style="font-size:9px">
+      <thead><tr>
+        <th style="border:1px solid #ddd;padding:3px 4px;text-align:center">N°</th>
+        <th style="border:1px solid #ddd;padding:3px 4px;text-align:center">Fecha</th>
+        <th style="border:1px solid #ddd;padding:3px 4px;text-align:right">Saldo Ant.</th>
+        <th style="border:1px solid #ddd;padding:3px 4px;text-align:right">Cuota</th>
+        <th style="border:1px solid #ddd;padding:3px 4px;text-align:right">Intereses</th>
+        <th style="border:1px solid #ddd;padding:3px 4px;text-align:right">Capital</th>
+        <th style="border:1px solid #ddd;padding:3px 4px;text-align:right">Nuevo Saldo</th>
+        <th style="border:1px solid #ddd;padding:3px 4px;text-align:center">Estado</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div style="margin-top:10px;font-size:9px;color:#999;text-align:center">
-      Parcelación Santa Teresita 2 · Tabla de amortización generada automáticamente · ${new Date().toLocaleDateString('es-SV')}
-    </div>`
+    <div style="margin-top:8px;font-size:8px;color:#999;text-align:center">
+      Parcelación Santa Teresita 2 · Tabla de amortización · ${new Date().toLocaleDateString('es-SV')}
+    </div>`,
+    `Amortizacion-Lote-${loteId}`, 'portrait'
   );
 }
 
@@ -2518,7 +2535,7 @@ function verPerfilCliente(cid) {
   }
 
   html += `<div style="padding:14px 20px;background:var(--surface2);border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
-    <button class="btn btn-secondary btn-sm" onclick="printPerfilCliente(${cid})">🖨 Imprimir perfil</button>
+    <button class="btn btn-secondary btn-sm" onclick="printPerfilCliente(${cid})">📄 Descargar PDF</button>
     <button class="btn btn-amber btn-sm" onclick="editarPerfilCliente(${cid})">✏ Editar perfil</button>
     <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-perfil-cliente')">Cerrar</button>
   </div>`;
