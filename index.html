@@ -2059,7 +2059,7 @@ function renderClientes(list) {
       <td>${c.tel||'<span style="color:var(--text-light)">—</span>'}</td>
       <td>${clasificacionBadge(c)}</td>
       <td>${alertas.length ? alertas.join(' ') : '<span style="color:var(--text-light);font-size:11px">—</span>'}</td>
-      <td style="font-weight:600;color:var(--accent)">${saldo > 0 ? fmt(saldo) : '<span class="badge badge-green">Saldado</span>'}</td>
+      <td style="font-weight:600;color:var(--accent)">${saldo > 0 ? fmt(saldo) : totalPagado > 0 ? '<span class="badge badge-green">Saldado</span>' : '<span class="badge badge-gray">Sin pagos</span>'}</td>
       <td>
         <button class="btn btn-primary btn-sm" onclick="verPerfilCliente(${c.id})">Ver perfil</button>
       </td>
@@ -2237,7 +2237,7 @@ function verDetalleLote(loteId) {
       ${l.meses > 0 ? `
       <div style="background:var(--surface2);padding:12px;border-radius:6px">
         <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Saldo pendiente</div>
-        <div style="font-weight:700;color:${saldo > 0 ? 'var(--red)' : 'var(--accent)'}">${saldo > 0 ? fmt(saldo) : '✓ Saldado'}</div>
+        <div style="font-weight:700;color:${saldo > 0 ? 'var(--red)' : pagosDeLote.length > 0 ? 'var(--accent)' : 'var(--text-muted)'}">${saldo > 0 ? fmt(saldo) : pagosDeLote.length > 0 ? '✓ Saldado' : 'Sin pagos aún'}</div>
       </div>` : ''}
     </div>
     ${l.meses > 0 ? `
@@ -3290,7 +3290,7 @@ function verPerfilCliente(cid) {
         </div>
         <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px">
           <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em">Saldo Pendiente</div>
-          <div style="font-size:18px;font-weight:700;color:${totalSaldo>0?'var(--red)':'var(--accent)'};margin-top:4px">${totalSaldo>0?fmt(totalSaldo):'<span class="badge badge-green">Saldado</span>'}</div>
+          <div style="font-size:18px;font-weight:700;color:${totalSaldo>0?'var(--red)':'var(--accent)'};margin-top:4px">${totalSaldo>0?fmt(totalSaldo):totalPagado>0?'<span class="badge badge-green">Saldado</span>':'<span class="badge badge-gray">Sin pagos aún</span>'}</div>
         </div>
       </div>
     </div>
@@ -3340,7 +3340,7 @@ function verPerfilCliente(cid) {
         </div>
         <div style="background:var(--surface2);border-radius:6px;padding:10px">
           <div style="font-size:10px;color:var(--text-muted)">Saldo actual</div>
-          <div style="font-weight:600;font-size:13px;color:${saldo>0.01?'var(--red)':'var(--accent)'}">${saldo>0.01?fmt(saldo):'✓ Saldado'}</div>
+          <div style="font-weight:600;font-size:13px;color:${saldo>0.01?'var(--red)':'var(--accent)'}">${saldo>0.01?fmt(saldo):pagosDeLote.length>0?'✓ Saldado':'Pendiente'}</div>
         </div>
       </div>
       ${loteInfo.meses>0?(()=>{
