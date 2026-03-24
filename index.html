@@ -2045,6 +2045,7 @@ function renderClientes(list) {
       const lastPago = [...pagos].filter(p => p.cliente_id === c.id && p.lote === l.id).sort((a,b) => b.id - a.id)[0];
       return s + (lastPago ? (lastPago.saldo||0) : 0);
     }, 0);
+    const totalPagado = pagos.filter(p => p.cliente_id === c.id).reduce((s,p) => s+(p.monto||0), 0);
     const meses = mesesSinPagar(c.id);
     const morosoAuto = meses >= 2;
     const docsPend = docsIncompletos(c);
