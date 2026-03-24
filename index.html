@@ -1904,7 +1904,7 @@ function printPerfilCliente(cid) {
       <div style="font-size:10px;color:#666">${codigo}</div>
     </div>
     ${body}`,
-    `Perfil-${c.codigo||cid}`
+    'Perfil-' + (c.codigo||cid)
   );
 }
 
@@ -1945,7 +1945,7 @@ function printHistorial() {
     </table>
     <div style="display:flex;gap:16px;background:#f5f2ec;padding:8px 10px;border-radius:4px;font-size:10px;flex-wrap:wrap">${totales}</div>
     <div style="margin-top:8px;font-size:8px;color:#aaa;text-align:center">Parcelación Santa Teresita 2 · ${new Date().toLocaleDateString('es-SV')}</div>
-  `, `Historial-${title.replace(/[^a-zA-Z0-9-]/g,'_')}`, 'landscape');
+  `, 'Historial-' + title.replace(/[^a-zA-Z0-9-]/g,'_'), 'landscape');
 }
 
 function printAmortizacion() {
