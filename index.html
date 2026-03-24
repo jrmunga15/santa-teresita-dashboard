@@ -1431,7 +1431,7 @@ const catalogoLotes = [
   { id:"C-16", area_m2:200.00, area_v2:286.16,     estado_plano:"Disponible" },
   { id:"C-17", area_m2:200.00, area_v2:286.16,     estado_plano:"Disponible" },
   { id:"C-18", area_m2:200.00, area_v2:286.16,     estado_plano:"Disponible" },
-  { id:"C-19", area_m2:200.37, area_v2:286.689396, estado_plano:"Vendido a Plazo" },
+  { id:"C-19", area_m2:200.37, area_v2:286.689396, estado_plano:"Vendido Contado" },
   { id:"C-20", area_m2:200.37, area_v2:286.689396, estado_plano:"Vendido Contado" },
   { id:"D-1",  area_m2:200.37, area_v2:286.689396, estado_plano:"Disponible" },
   { id:"D-2",  area_m2:203.00, area_v2:290.4524,   estado_plano:"Disponible" },
@@ -1502,7 +1502,7 @@ const datosFinancieros = {
   "B-20": { propietario_id:9,  valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
   "C-1":  { propietario_id:null, valor:15000, reserva:500,  financiar:14500, tasa:0.105,  meses:180, cuota:160.00 },
   "C-2":  { propietario_id:null, valor:15000, reserva:500,  financiar:14500, tasa:0.105,  meses:180, cuota:160.00 },
-  "C-19": { propietario_id:14, valor:15000, reserva:500,  financiar:14500, tasa:0.105,  meses:180, cuota:160.00 },
+  "C-19": { propietario_id:14, valor:15000, reserva:500,  financiar:0,     tasa:0,      meses:0,   cuota:0 },
   "C-20": { propietario_id:10, valor:15000, reserva:500,  financiar:0,     tasa:0,      meses:0,   cuota:0 },
   "D-17": { propietario_id:17, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
   "D-19": { propietario_id:17, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
@@ -1920,7 +1920,11 @@ function initProximosPagos() {
 
     const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
     const cuotasPagadas = pagosDeLote.filter(p => p.concepto && /^\d+\/\d+$/.test(p.concepto)).length;
-    if (cuotasPagadas >= loteInfo.meses) return; // fully paid
+
+    // Skip if fully paid (saldo = 0) or all cuotas done
+    const lastPago = pagosDeLote[pagosDeLote.length - 1];
+    const saldoActual = lastPago ? (lastPago.saldo || 0) : (loteInfo.financiar || 0);
+    if (saldoActual <= 0 || cuotasPagadas >= loteInfo.meses) return;
 
     // Get payment day from first payment
     const primerPago = pagosDeLote[0];
