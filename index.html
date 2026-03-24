@@ -1042,7 +1042,10 @@
         <span class="modal-title" id="perfil-titulo" style="color:#fff"></span>
         <div style="font-size:11px;color:#8a8070;margin-top:2px" id="perfil-codigo"></div>
       </div>
-      <button class="modal-close" style="color:#fff" onclick="closeModal('modal-perfil-cliente')">×</button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn btn-danger btn-sm" onclick="borrarPerfilCliente()" style="font-size:11px">🗑 Borrar perfil</button>
+        <button class="modal-close" style="color:#fff" onclick="closeModal('modal-perfil-cliente')">×</button>
+      </div>
     </div>
     <div class="modal-body" style="overflow-y:auto;padding:0" id="perfil-body"></div>
   </div>
@@ -1103,7 +1106,33 @@
             </select>
           </div>
         </div>
-        <div id="cli-lote-info" style="display:none;background:var(--surface2);border-radius:var(--radius-sm);padding:12px;font-size:12px;margin-top:4px;"></div>
+        <div class="form-grid" style="margin-top:10px">
+          <div class="form-group">
+            <label class="form-label">Precio del lote ($)</label>
+            <input type="number" class="form-control" id="cli-precio" placeholder="18500.00" step="0.01" oninput="onCliLoteChange()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Monto de reserva ($)</label>
+            <input type="number" class="form-control" id="cli-reserva" placeholder="500.00" step="0.01" oninput="onCliLoteChange()">
+          </div>
+        </div>
+        <div class="form-grid" style="margin-top:0">
+          <div class="form-group">
+            <label class="form-label">Tasa de interés anual (%)</label>
+            <input type="number" class="form-control" id="cli-tasa" placeholder="10.5" step="0.01" oninput="onCliLoteChange()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Forma de pago</label>
+            <select class="form-control" id="cli-forma-pago">
+              <option>Efectivo</option>
+              <option>Agrícola</option>
+              <option>Cuscatlán</option>
+              <option>Transferencia</option>
+              <option>Cheque</option>
+            </select>
+          </div>
+        </div>
+        <div id="cli-lote-info" style="display:none;background:var(--surface2);border-radius:var(--radius-sm);padding:12px;font-size:12px;margin-top:8px;"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1279,9 +1308,9 @@ const catalogoLotes = [
   { id:"B-2",  area_m2:203.00, area_v2:290.4524,   estado_plano:"Vendido a Plazo" },
   { id:"B-3",  area_m2:203.00, area_v2:290.4524,   estado_plano:"Disponible" },
   { id:"B-4",  area_m2:200.37, area_v2:286.689396, estado_plano:"Disponible" },
-  { id:"B-5",  area_m2:200.00, area_v2:286.16,     estado_plano:"Vendido a Plazo" },
+  { id:"B-5",  area_m2:200.00, area_v2:286.16,     estado_plano:"Vendido Contado" },
   { id:"B-6",  area_m2:200.00, area_v2:286.16,     estado_plano:"Disponible" },
-  { id:"B-7",  area_m2:200.00, area_v2:286.16,     estado_plano:"Disponible" },
+  { id:"B-7",  area_m2:200.00, area_v2:286.16,     estado_plano:"Vendido Contado" },
   { id:"B-8",  area_m2:200.00, area_v2:286.16,     estado_plano:"Disponible" },
   { id:"B-9",  area_m2:200.00, area_v2:286.16,     estado_plano:"Disponible" },
   { id:"B-10", area_m2:200.00, area_v2:286.16,     estado_plano:"Disponible" },
@@ -1373,8 +1402,8 @@ const datosFinancieros = {
   "A-17": { propietario_id:15,  valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
   "A-18": { propietario_id:15,  valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
   "B-2":  { propietario_id:4,  valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
-  "B-5":  { propietario_id:16, valor:15000, reserva:500,  financiar:14500, tasa:0.105,  meses:180, cuota:160.00 },
-  "B-7":  { propietario_id:16, valor:15000, reserva:500,  financiar:14500, tasa:0.105,  meses:180, cuota:160.00 },
+  "B-5":  { propietario_id:16, valor:15000, reserva:500,  financiar:0,     tasa:0,      meses:0,   cuota:0 },
+  "B-7":  { propietario_id:16, valor:15000, reserva:500,  financiar:0,     tasa:0,      meses:0,   cuota:0 },
   "B-11": { propietario_id:12, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
   "B-12": { propietario_id:12, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
   "B-13": { propietario_id:12, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
@@ -1864,17 +1893,16 @@ function buildReciboCopy(p, c, loteInfo, esCopia = false) {
         <div class="rc-cell lbl">TÉRMINOS</div>
         <div class="rc-cell" style="font-size:10px;">DUI / Pasaporte: <strong>${c.dui||'—'}</strong></div>
         <div class="rc-cell val" style="font-size:12px;font-weight:700;color:#2d6a4f">${c.codigo||'—'}</div>
-        <div class="rc-cell val" style="font-size:11px">${loteInfo && loteInfo.meses === 180 ? 'Crédito a 15 años' : 'Contado'}</div>
+        <div class="rc-cell val" style="font-size:11px">${loteInfo && loteInfo.meses > 0 ? 'Crédito a 15 años' : 'Contado'}</div>
       </div>
       <div class="rc-grid-top" style="border-top:none;">
         <div class="rc-cell" style="grid-column:1/3;border-right:none"></div>
-        <div class="rc-cell" style="font-size:10px">Valor cuota mensual: <strong>${loteInfo ? fmt(loteInfo.cuota) : '—'}</strong></div>
-        <div class="rc-cell" style="grid-column:1/3;border-right:none;font-size:10px">Fecha de Pago: <strong>${(() => {
+        ${loteInfo && loteInfo.meses > 0 ? `<div class="rc-cell" style="font-size:10px">Valor cuota mensual: <strong>${loteInfo ? fmt(loteInfo.cuota) : '—'}</strong></div>` : '<div class="rc-cell"></div>'}
+        ${loteInfo && loteInfo.meses > 0 ? `<div class="rc-cell" style="grid-column:1/3;border-right:none;font-size:10px">Fecha de Pago: <strong>${(() => {
           const primerPago = pagos.filter(px => px.lote === p.lote).sort((a,b) => a.fecha.localeCompare(b.fecha))[0];
           const fechaRef = primerPago ? primerPago.fecha : p.fecha;
           return fechaRef ? new Date(fechaRef+'T12:00:00').getDate()+' de cada Mes' : '—';
-        })()}</strong></div>
-        <div class="rc-cell" style="font-size:10px"></div>
+        })()}</strong></div><div class="rc-cell" style="font-size:10px"></div>` : '<div class="rc-cell" style="grid-column:1/3;border-right:none"></div><div class="rc-cell"></div>'}
       </div>
       <div class="rc-desc-header">
         <div class="rc-cell-desc lbl">DESCRIPCIÓN</div>
@@ -1894,7 +1922,8 @@ function buildReciboCopy(p, c, loteInfo, esCopia = false) {
       <div class="rc-detail-row"><div class="rc-detail-label">Abono a Capital</div><div class="rc-detail-val">${fmt(abonoCapital)}</div></div>
       <div class="rc-detail-row" style="border-top:1px solid #bbb"><div class="rc-detail-label rc-bold">Nuevo Saldo</div><div class="rc-detail-val rc-bold">${fmt(nuevoSaldo)}</div></div>
       ` : `
-      <div class="rc-detail-row"><div class="rc-detail-label">Saldo Pendiente</div><div class="rc-detail-val">${fmt(p.saldo)}</div></div>
+      <div class="rc-detail-row"><div class="rc-detail-label">Saldo Anterior</div><div class="rc-detail-val">${fmt(p.saldo + p.monto)}</div></div>
+      <div class="rc-detail-row" style="border-top:1px solid #bbb"><div class="rc-detail-label rc-bold">Nuevo Saldo</div><div class="rc-detail-val rc-bold">${fmt(p.saldo)}</div></div>
       `}
       <div class="rc-total-row">
         <div class="rc-cell-desc" style="grid-column:1/4;font-style:italic;font-weight:700;color:#2d6a4f">Parcelación Santa Teresita 2, "Tu pedacito de Cielo".</div>
@@ -2381,13 +2410,13 @@ function registrarPago() {
 // CLIENTE
 // ═══════════════════════════════════════════════
 function setupModalCliente() {
-  // Reset fields
-  ['cli-nombre','cli-dui','cli-tel','cli-ref','cli-benef','cli-benef-dui'].forEach(id => {
+  ['cli-nombre','cli-dui','cli-tel','cli-ref','cli-benef','cli-benef-dui',
+   'cli-precio','cli-reserva','cli-tasa'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('cli-lote-info').style.display = 'none';
+  document.getElementById('cli-tipo-venta').value = 'plazo';
 
-  // Populate disponible lotes only
   const sel = document.getElementById('cli-lote');
   const disponibles = lotes.filter(l => l.estado_plano === 'Disponible');
   sel.innerHTML = '<option value="">— Sin asignar por ahora —</option>' +
@@ -2396,27 +2425,38 @@ function setupModalCliente() {
 
 function onCliLoteChange() {
   const loteId = document.getElementById('cli-lote').value;
-  const tipo = document.getElementById('cli-tipo-venta').value;
+  const tipo   = document.getElementById('cli-tipo-venta').value;
   const infoDiv = document.getElementById('cli-lote-info');
 
   if (!loteId) { infoDiv.style.display = 'none'; return; }
 
   const l = getLote(loteId);
-  const reserva = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? 900 : 500);
-  const valor = l.valor || 18500;
-  const financiar = valor - reserva;
-  const tasa = 0.105;
-  const tasaMensual = tasa / 12;
-  const cuota = tipo === 'contado' ? 0 :
-    Math.round(financiar * tasaMensual / (1 - Math.pow(1 + tasaMensual, -180)) * 100) / 100;
+
+  // Pre-fill defaults only if fields are empty
+  const precioEl   = document.getElementById('cli-precio');
+  const reservaEl  = document.getElementById('cli-reserva');
+  const tasaEl     = document.getElementById('cli-tasa');
+
+  if (!precioEl.value)  precioEl.value  = l.valor || 18500;
+  if (!reservaEl.value) reservaEl.value = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? 900 : 500);
+  if (!tasaEl.value)    tasaEl.value    = 10.5;
+
+  const valor    = parseFloat(precioEl.value)  || (l.valor || 18500);
+  const reserva  = tipo === 'contado' ? 0 : (parseFloat(reservaEl.value) || 500);
+  const tasaPct  = parseFloat(tasaEl.value)    || 10.5;
+  const tasa     = tasaPct / 100;
+  const financiar = tipo === 'contado' ? 0 : valor - reserva;
+  const tm       = tasa / 12;
+  const cuota    = tipo === 'contado' ? 0 :
+    Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
 
   infoDiv.style.display = 'block';
   infoDiv.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
       <div><div style="color:var(--text-muted)">Área</div><strong>${l.area_m2} m² / ${l.area_v2?.toFixed(2)} v²</strong></div>
-      <div><div style="color:var(--text-muted)">Valor</div><strong>${fmt(valor)}</strong></div>
+      <div><div style="color:var(--text-muted)">A financiar</div><strong>${tipo === 'contado' ? '—' : fmt(financiar)}</strong></div>
       <div><div style="color:var(--text-muted)">${tipo === 'contado' ? 'Pago total' : 'Reserva'}</div><strong>${tipo === 'contado' ? fmt(valor) : fmt(reserva)}</strong></div>
-      <div><div style="color:var(--text-muted)">${tipo === 'contado' ? 'Financiar' : 'Cuota/mes'}</div><strong>${tipo === 'contado' ? '—' : fmt(cuota)}</strong></div>
+      <div><div style="color:var(--text-muted)">${tipo === 'contado' ? '—' : 'Cuota/mes'}</div><strong>${tipo === 'contado' ? '—' : fmt(cuota)}</strong></div>
     </div>`;
 }
 
@@ -2446,17 +2486,17 @@ function guardarCliente() {
   const loteId = document.getElementById('cli-lote').value;
   const tipo   = document.getElementById('cli-tipo-venta').value;
   if (loteId) {
-    const l = getLote(loteId);
-    const reserva  = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? 900 : 500);
-    const valor    = l.valor || 18500;
+    const l       = getLote(loteId);
+    const valor   = parseFloat(document.getElementById('cli-precio').value)  || l.valor  || 18500;
+    const reserva = tipo === 'contado' ? 0 : (parseFloat(document.getElementById('cli-reserva').value) || 500);
+    const tasaPct = parseFloat(document.getElementById('cli-tasa').value)    || 10.5;
+    const tasa    = tasaPct / 100;
     const financiar = tipo === 'contado' ? 0 : valor - reserva;
-    const tasa     = 0.105;
-    const tasaMensual = tasa / 12;
-    const meses    = tipo === 'contado' ? 0 : 180;
-    const cuota    = tipo === 'contado' ? 0 :
-      Math.round(financiar * tasaMensual / (1 - Math.pow(1 + tasaMensual, -180)) * 100) / 100;
+    const tm      = tasa / 12;
+    const meses   = tipo === 'contado' ? 0 : 180;
+    const cuota   = tipo === 'contado' ? 0 :
+      Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
 
-    // Update lote in catalog
     const loteIdx = lotes.findIndex(l => l.id === loteId);
     if (loteIdx >= 0) {
       lotes[loteIdx].propietario_id = newId;
@@ -2474,6 +2514,47 @@ function guardarCliente() {
   renderClientes();
   document.getElementById('stat-clientes').textContent = clientes.length;
   alert(`✅ Lote-habiente registrado: ${codigo} — ${nombre}${loteId ? '\nLote ' + loteId + ' asignado.' : ''}`);
+}
+
+function borrarPerfilCliente() {
+  const titulo = document.getElementById('perfil-titulo').textContent;
+  const c = clientes.find(c => c.nombre === titulo);
+  if (!c) return;
+
+  const misLotes = lotes.filter(l => l.propietario_id === c.id);
+  const lotesList = misLotes.length ? '\nLotes asignados: ' + misLotes.map(l => l.id).join(', ') : '';
+  const pagosList = pagos.filter(p => p.cliente_id === c.id).length;
+
+  const confirmMsg = `¿Borrar el perfil de ${c.nombre}?\n\n` +
+    `${lotesList ? lotesList + ' — quedarán disponibles.' : 'Sin lotes asignados.'}` +
+    `\nPagos registrados: ${pagosList}` +
+    `\n\nEsta acción NO borra los pagos del historial.\n¿Continuar?`;
+
+  if (!confirm(confirmMsg)) return;
+
+  // Free up lotes
+  misLotes.forEach(l => {
+    const idx = lotes.findIndex(x => x.id === l.id);
+    if (idx >= 0) {
+      lotes[idx].propietario_id = null;
+      lotes[idx].estado_plano = 'Disponible';
+    }
+  });
+
+  // Remove cliente
+  const idx = clientes.findIndex(x => x.id === c.id);
+  if (idx >= 0) clientes.splice(idx, 1);
+
+  // Sync to Firestore if connected
+  if (window._db && c._docId) {
+    const { collection, doc, deleteDoc } = window._fbFns;
+    deleteDoc(doc(collection(window._db, 'clientes'), c._docId));
+  }
+
+  closeModal('modal-perfil-cliente');
+  renderDashboard();
+  renderClientes();
+  alert(`✅ Perfil de ${c.nombre} eliminado. ${misLotes.length ? 'Lotes liberados: ' + misLotes.map(l=>l.id).join(', ') : ''}`);
 }
 
 function verPerfilCliente(cid) {
@@ -3120,8 +3201,6 @@ const LOTE_PAGO_INFO = {
   'A-17': { dia: 7,  inicio: '2026-03' }, // reserva 07/02/2026
   'A-18': { dia: 7,  inicio: '2026-03' }, // reserva 07/02/2026
   'B-2':  { dia: 18, inicio: '2026-01' }, // reserva 18/12/2025
-  'B-5':  { dia: 9,  inicio: '2026-03' }, // reserva 09/02/2026
-  'B-7':  { dia: 9,  inicio: '2026-03' }, // reserva 09/02/2026
   'B-11': { dia: 30, inicio: '2026-02' }, // reserva 30/01/2026
   'B-12': { dia: 30, inicio: '2026-02' }, // reserva 30/01/2026
   'B-13': { dia: 30, inicio: '2026-02' }, // reserva 30/01/2026
@@ -3157,7 +3236,7 @@ function getAmortTable(loteId) {
 function initAmortizacion() {
   // Populate the lot selector with only lots that have amortization tables
   const sel = document.getElementById('amort-select-lote');
-  const lotesConAmort = lotes.filter(l => AMORT_MAP[l.id]);
+  const lotesConAmort = lotes.filter(l => AMORT_MAP[l.id] && l.meses > 0);
   sel.innerHTML = '<option value="">— Seleccionar lote —</option>' +
     lotesConAmort.map(l => {
       const c = l.propietario_id ? getCliente(l.propietario_id) : null;
@@ -3444,7 +3523,7 @@ window.guardarCliente = async function() {
     const tasaMensual = tasa / 12;
     const meses    = tipo === 'contado' ? 0 : 180;
     const cuota    = tipo === 'contado' ? 0 :
-      Math.round(financiar * tasaMensual / (1 - Math.pow(1 + tasaMensual, -180)) * 100) / 100;
+      Math.round(financiar * tasaMensual / (1 - Math.pow(1 + tasaMensual, -180)) / 5) * 5;
 
     const loteIdx = lotes.findIndex(l => l.id === loteId);
     if (loteIdx >= 0) {
