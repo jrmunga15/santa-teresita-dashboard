@@ -1257,6 +1257,19 @@
 const EMPRESA = "Parcelación Sta. Teresita 2";
 const EMPRESA_SUB = "Ahuachapán, El Salvador";
 
+// ── Precios base por m² (editables aquí para ajustes futuros) ──
+const PRECIO_M2_PLAZO   = 92.50;  // precio a plazo por m²
+const PRECIO_M2_CONTADO = 82.50;  // precio de contado por m²
+const RESERVA_PEQUEÑA   = 500;    // reserva para lotes < 230 m²
+const RESERVA_GRANDE    = 900;    // reserva para lotes >= 230 m²
+const TASA_ANUAL_DEFAULT = 10.5;  // tasa de interés anual %
+
+function calcPrecioLote(area_m2, tipo) {
+  const precioM2 = tipo === 'contado' ? PRECIO_M2_CONTADO : PRECIO_M2_PLAZO;
+  // Round to nearest $50 for clean numbers
+  return Math.round((area_m2 * precioM2) / 50) * 50;
+}
+
 // Clientes unicos
 let clientes = [
   { id:1,  codigo:"LHPST-0001", nombre:"Los Felices Existen S.R.L.", dui:"—", tel:"", ref:"", benef:"", benef_dui:"", email:"", ocupacion:"", dir2:"", estado_civil:"", nacimiento:"", dui_vence:"", dui_foto_front:"", dui_foto_back:"", clasificacion:"normal", docs_dui:false, docs_contrato:false, fecha_contrato:"" },
@@ -2427,26 +2440,26 @@ function setupModalCliente() {
 }
 
 function onCliLoteChange() {
-  const loteId = document.getElementById('cli-lote').value;
-  const tipo   = document.getElementById('cli-tipo-venta').value;
+  const loteId  = document.getElementById('cli-lote').value;
+  const tipo    = document.getElementById('cli-tipo-venta').value;
   const infoDiv = document.getElementById('cli-lote-info');
 
   if (!loteId) { infoDiv.style.display = 'none'; return; }
 
   const l = getLote(loteId);
 
-  // Pre-fill defaults only if fields are empty
-  const precioEl   = document.getElementById('cli-precio');
-  const reservaEl  = document.getElementById('cli-reserva');
-  const tasaEl     = document.getElementById('cli-tasa');
+  const precioEl  = document.getElementById('cli-precio');
+  const reservaEl = document.getElementById('cli-reserva');
+  const tasaEl    = document.getElementById('cli-tasa');
 
-  if (!precioEl.value)  precioEl.value  = l.valor || 18500;
-  if (!reservaEl.value) reservaEl.value = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? 900 : 500);
-  if (!tasaEl.value)    tasaEl.value    = 10.5;
+  // Always recalculate defaults when lote or tipo changes
+  precioEl.value  = calcPrecioLote(l.area_m2, tipo);
+  reservaEl.value = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA);
+  tasaEl.value    = TASA_ANUAL_DEFAULT;
 
-  const valor    = parseFloat(precioEl.value)  || (l.valor || 18500);
-  const reserva  = tipo === 'contado' ? 0 : (parseFloat(reservaEl.value) || 500);
-  const tasaPct  = parseFloat(tasaEl.value)    || 10.5;
+  const valor    = parseFloat(precioEl.value)  || calcPrecioLote(l.area_m2, tipo);
+  const reserva  = tipo === 'contado' ? 0 : (parseFloat(reservaEl.value) || RESERVA_PEQUEÑA);
+  const tasaPct  = parseFloat(tasaEl.value)    || TASA_ANUAL_DEFAULT;
   const tasa     = tasaPct / 100;
   const financiar = tipo === 'contado' ? 0 : valor - reserva;
   const tm       = tasa / 12;
@@ -2490,9 +2503,9 @@ function guardarCliente() {
   const tipo   = document.getElementById('cli-tipo-venta').value;
   if (loteId) {
     const l       = getLote(loteId);
-    const valor   = parseFloat(document.getElementById('cli-precio').value)  || l.valor  || 18500;
-    const reserva = tipo === 'contado' ? 0 : (parseFloat(document.getElementById('cli-reserva').value) || 500);
-    const tasaPct = parseFloat(document.getElementById('cli-tasa').value)    || 10.5;
+    const valor   = parseFloat(document.getElementById('cli-precio').value)  || calcPrecioLote(l.area_m2, tipo);
+    const reserva = tipo === 'contado' ? 0 : (parseFloat(document.getElementById('cli-reserva').value) || RESERVA_PEQUEÑA);
+    const tasaPct = parseFloat(document.getElementById('cli-tasa').value)    || TASA_ANUAL_DEFAULT;
     const tasa    = tasaPct / 100;
     const financiar = tipo === 'contado' ? 0 : valor - reserva;
     const tm      = tasa / 12;
