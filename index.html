@@ -416,9 +416,149 @@
   .font-mono { font-family: 'DM Mono', monospace; }
   .text-right { text-align: right; }
 
-  @media print {
-    body * { display: none !important; }
-    #print-frame { display: block !important; position:fixed !important; inset:0 !important; }
+  /* ─── HAMBURGER ─── */
+  .hamburger {
+    display: none;
+    flex-direction: column; justify-content: center; align-items: center;
+    width: 36px; height: 36px; gap: 5px;
+    background: none; border: none; cursor: pointer; padding: 4px;
+    border-radius: var(--radius-sm);
+  }
+  .hamburger:hover { background: var(--surface2); }
+  .hamburger span {
+    display: block; width: 20px; height: 2px;
+    background: var(--text); border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .sidebar-close {
+    display: none;
+    background: none; border: none; color: rgba(255,255,255,0.5);
+    font-size: 22px; cursor: pointer; line-height: 1; padding: 0 4px;
+  }
+  .sidebar-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+  }
+  .sidebar-overlay.open { display: block; }
+
+  /* ─── MOBILE ─── */
+  @media (max-width: 768px) {
+    /* Sidebar: hidden off-screen by default */
+    .sidebar {
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      z-index: 100;
+      width: 260px;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-close { display: block; }
+
+    /* Main takes full width */
+    .main { margin-left: 0; }
+
+    /* Topbar */
+    .topbar { padding: 0 16px; height: 56px; }
+    .topbar-title { font-size: 16px; }
+    .hamburger { display: flex; }
+    #topbar-user { display: none; }
+
+    /* Content padding */
+    .content { padding: 16px; }
+
+    /* Stat grid: 2 columns */
+    .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+    .stat-card { padding: 14px; }
+    .stat-card .value { font-size: 22px; }
+
+    /* Tables: horizontal scroll */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 500px; }
+    td, th { padding: 8px 10px; font-size: 12px; }
+
+    /* Buttons */
+    .btn { padding: 9px 14px; font-size: 13px; }
+    .btn-sm { padding: 7px 12px; font-size: 12px; }
+
+    /* Modals: full screen on mobile */
+    .modal {
+      width: 100% !important;
+      max-width: 100% !important;
+      max-height: 100vh !important;
+      height: 100vh;
+      border-radius: 0 !important;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-overlay { align-items: flex-end; }
+    .modal-body { flex: 1; overflow-y: auto; }
+    .modal-footer { padding: 12px 16px; }
+
+    /* Forms */
+    .form-grid { grid-template-columns: 1fr !important; gap: 10px; }
+    .form-grid-3 { grid-template-columns: 1fr !important; gap: 10px; }
+
+    /* Cards */
+    .card-header { padding: 12px 14px; flex-wrap: wrap; gap: 8px; }
+
+    /* Topbar actions: hide text, keep buttons compact */
+    .topbar-actions { gap: 6px; }
+    .topbar-actions .btn-secondary { display: none; }
+
+    /* Profile modal: full height */
+    #modal-perfil-cliente .modal { height: 100vh; border-radius: 0 !important; }
+
+    /* Search box full width */
+    .search-box input { width: 160px; }
+
+    /* Stat grid for saldos */
+    #saldos-stats { grid-template-columns: 1fr 1fr !important; }
+
+    /* Bottom nav bar for quick access */
+    .mobile-nav {
+      display: flex;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--text);
+      z-index: 90;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      height: 58px;
+    }
+    .mobile-nav-item {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px; color: rgba(255,255,255,0.5);
+      font-size: 9px; cursor: pointer;
+      background: none; border: none;
+      font-family: 'DM Sans', sans-serif;
+      transition: color 0.15s;
+    }
+    .mobile-nav-item.active { color: #fff; }
+    .mobile-nav-item svg { width: 18px; height: 18px; }
+
+    /* Extra bottom padding so content isn't behind bottom nav */
+    .content { padding-bottom: 70px; }
+
+    /* + Pago button fixed at bottom right */
+    .fab-pago {
+      display: flex !important;
+      position: fixed; bottom: 68px; right: 16px;
+      width: 52px; height: 52px;
+      background: var(--accent); color: #fff;
+      border-radius: 50%; border: none;
+      font-size: 24px; cursor: pointer;
+      align-items: center; justify-content: center;
+      box-shadow: 0 4px 16px rgba(45,106,79,0.4);
+      z-index: 89;
+    }
+  }
+
+  /* Hide mobile-only elements on desktop */
+  .mobile-nav { display: none; }
+  .fab-pago { display: none; }
+
+  @media (max-width: 768px) {
+    @media print { .mobile-nav, .fab-pago, .hamburger { display: none !important; } }
   }
 </style>
 </head>
@@ -464,38 +604,46 @@
 <!-- ═══ APP SHELL ═══ -->
 <div id="app-shell" style="display:none">
 
+<!-- Sidebar overlay for mobile -->
+<div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
 <!-- SIDEBAR -->
-<nav class="sidebar">
+<nav class="sidebar" id="sidebar">
   <div class="sidebar-logo">
-    <div class="brand">Parcelación<br>Sta. Teresita 2</div>
-    <div class="sub">Ahuachapán, El Salvador</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="brand">Parcelación<br>Sta. Teresita 2</div>
+        <div class="sub">Ahuachapán, El Salvador</div>
+      </div>
+      <button class="sidebar-close" onclick="closeSidebar()">×</button>
+    </div>
   </div>
   <div class="nav">
-    <button class="nav-item active" onclick="navigate('dashboard')">
+    <button class="nav-item active" onclick="navigate('dashboard'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
       Dashboard
     </button>
-    <button class="nav-item" onclick="navigate('clientes')">
+    <button class="nav-item" onclick="navigate('clientes'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M1 14c0-3.314 3.134-6 7-6s7 2.686 7 6"/></svg>
       Lote-habientes
     </button>
-    <button class="nav-item" onclick="navigate('pagos')">
+    <button class="nav-item" onclick="navigate('pagos'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><path d="M1 7h14"/><path d="M4 11h3"/></svg>
       Pagos
     </button>
-    <button class="nav-item" onclick="navigate('lotes')">
+    <button class="nav-item" onclick="navigate('lotes'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 14L8 2l6 12H2z"/><path d="M5 14v-4h6v4"/></svg>
       Lotes
     </button>
-    <button class="nav-item" onclick="navigate('recibos')">
+    <button class="nav-item" onclick="navigate('recibos'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="1" width="10" height="14" rx="1"/><path d="M6 5h4M6 8h4M6 11h2"/></svg>
       Recibos
     </button>
-    <button class="nav-item" onclick="navigate('saldos')">
+    <button class="nav-item" onclick="navigate('saldos'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 11l4-4 3 3 4-5 3 2"/><path d="M1 14h14"/></svg>
       Saldos por Lote
     </button>
-    <button class="nav-item" onclick="navigate('amortizacion')">
+    <button class="nav-item" onclick="navigate('amortizacion'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="14" height="14" rx="1.5"/><path d="M4 5h8M4 8h6M4 11h4"/></svg>
       Amortización
     </button>
@@ -506,7 +654,12 @@
 <!-- MAIN -->
 <div class="main">
   <div class="topbar">
-    <span class="topbar-title" id="page-title">Dashboard</span>
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <span class="topbar-title" id="page-title">Dashboard</span>
+    </div>
     <div class="topbar-actions">
       <span id="topbar-user" style="font-size:12px;color:var(--text-muted);margin-right:8px"></span>
       <button class="btn btn-secondary btn-sm" onclick="doLogout()" style="margin-right:8px">Salir</button>
@@ -3094,6 +3247,22 @@ function renderAmortizacion(loteId) {
 
 
 // ═══════════════════════════════════════════════
+// MOBILE NAV
+// ═══════════════════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.querySelector('.sidebar-overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.querySelector('.sidebar-overlay').classList.remove('open');
+}
+function setMobileNav(btn) {
+  document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════
 // CLOSE ON OVERLAY CLICK
 // ═══════════════════════════════════════════════
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
@@ -3331,6 +3500,33 @@ window.guardarEdicionPerfil = async function(cid) {
 // INIT — rendering happens via Firestore listeners after auth
 // ═══════════════════════════════════════════════
 </script>
+<!-- Mobile bottom nav -->
+<nav class="mobile-nav" id="mobile-nav">
+  <button class="mobile-nav-item active" onclick="navigate('dashboard');setMobileNav(this)">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+    Inicio
+  </button>
+  <button class="mobile-nav-item" onclick="navigate('clientes');setMobileNav(this)">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M1 14c0-3.314 3.134-6 7-6s7 2.686 7 6"/></svg>
+    Clientes
+  </button>
+  <button class="mobile-nav-item" onclick="navigate('pagos');setMobileNav(this)">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><path d="M1 7h14"/><path d="M4 11h3"/></svg>
+    Pagos
+  </button>
+  <button class="mobile-nav-item" onclick="navigate('saldos');setMobileNav(this)">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 11l4-4 3 3 4-5 3 2"/><path d="M1 14h14"/></svg>
+    Saldos
+  </button>
+  <button class="mobile-nav-item" onclick="toggleSidebar()">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="1"/><circle cx="8" cy="3" r="1"/><circle cx="8" cy="13" r="1"/></svg>
+    Más
+  </button>
+</nav>
+
+<!-- Mobile FAB: Registrar Pago -->
+<button class="fab-pago" onclick="openModal('modal-pago')" title="Registrar Pago">+</button>
+
 </div><!-- /app-shell -->
 </body>
 </html>
