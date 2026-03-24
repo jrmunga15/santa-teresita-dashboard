@@ -2928,6 +2928,52 @@ function verHistorialLote(loteId) {
   card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function printHistorial() {
+  const title    = document.getElementById('historial-title').textContent;
+  const sub      = document.getElementById('historial-sub').textContent;
+  const totales  = document.getElementById('historial-totales').innerHTML;
+  const tbody    = document.getElementById('tbl-historial').innerHTML;
+
+  const printArea = document.getElementById('amort-print-area');
+  printArea.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;border-bottom:2px solid #2d6a4f;padding-bottom:10px">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#2d6a4f">Parcelación Santa Teresita 2</div>
+        <div style="font-size:11px;color:#666">Muzzolo Inversiones S.A.S. de C.V. · muzzoloinversiones@yahoo.com · (503) 7969-2069</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:14px;font-weight:700">HISTORIAL DE PAGOS</div>
+        <div style="font-size:11px;color:#666">Impreso: ${new Date().toLocaleDateString('es-SV')}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:6px">
+      <div style="font-size:14px;font-weight:700;color:#1a1612">${title}</div>
+      <div style="font-size:11px;color:#555;margin-top:2px">${sub}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:10px">
+      <thead>
+        <tr style="background:#f0ece6">
+          <th style="border:1px solid #ddd;padding:4px 6px">#</th>
+          <th style="border:1px solid #ddd;padding:4px 6px">Recibo</th>
+          <th style="border:1px solid #ddd;padding:4px 6px">Fecha</th>
+          <th style="border:1px solid #ddd;padding:4px 6px">Concepto</th>
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Monto</th>
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Saldo Anterior</th>
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Intereses</th>
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Abono Capital</th>
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Nuevo Saldo</th>
+          <th style="border:1px solid #ddd;padding:4px 6px">Forma Pago</th>
+        </tr>
+      </thead>
+      <tbody>${tbody}</tbody>
+    </table>
+    <div style="display:flex;gap:20px;background:#f5f2ec;padding:10px 12px;border-radius:6px;font-size:11px;flex-wrap:wrap">
+      ${totales}
+    </div>
+    <div style="margin-top:10px;font-size:9px;color:#aaa;text-align:center">
+      Parcelación Santa Teresita 2 · Historial generado automáticamente · ${new Date().toLocaleDateString('es-SV')}
+    </div>`;
+
 function cerrarHistorial() {
   document.getElementById('card-historial').style.display = 'none';
 }
@@ -3111,6 +3157,79 @@ function renderAmortizacion(loteId) {
   }, 100);
 }
 
+function printAmortizacion() {
+  const loteId = document.getElementById('amort-select-lote').value;
+  if (!loteId) { alert('Selecciona un lote primero.'); return; }
+
+  const tabla = getAmortTable(loteId);
+  if (!tabla) return;
+
+  const loteInfo = getLote(loteId);
+  const c = loteInfo.propietario_id ? getCliente(loteInfo.propietario_id) : null;
+  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const cuotasPagadas = pagosDeLote.filter(p => p.concepto?.includes('/') || p.concepto === 'Abono').length;
+  const saldoActual = pagosDeLote.length > 0 ? pagosDeLote[pagosDeLote.length-1].saldo : loteInfo.financiar;
+  const totalInteres = tabla.slice(0, cuotasPagadas).reduce((s,r) => s + (r[3]||0), 0);
+  const totalCapital = tabla.slice(0, cuotasPagadas).reduce((s,r) => s + (r[4]||0), 0);
+
+  const rows = tabla.map(r => {
+    const [mes, sa, cuota, interes, capital, saldo] = r;
+    const isPaid = mes <= cuotasPagadas;
+    const isCurrent = mes === cuotasPagadas + 1;
+    const cls = isCurrent ? 'current-row' : isPaid ? 'paid-row' : '';
+    return `<tr class="${cls}">
+      <td style="text-align:center;border:1px solid #ddd;padding:3px 6px">${mes}</td>
+      <td style="text-align:center;border:1px solid #ddd;padding:3px 6px">${getFechaCuota(loteId, mes)}</td>
+      <td style="text-align:right;border:1px solid #ddd;padding:3px 6px">${sa != null ? fmt(sa) : '—'}</td>
+      <td style="text-align:right;border:1px solid #ddd;padding:3px 6px;font-weight:600">${cuota != null ? fmt(cuota) : '—'}</td>
+      <td style="text-align:right;border:1px solid #ddd;padding:3px 6px">${interes != null ? '$'+interes.toFixed(2) : '—'}</td>
+      <td style="text-align:right;border:1px solid #ddd;padding:3px 6px">${capital != null ? '$'+capital.toFixed(2) : '—'}</td>
+      <td style="text-align:right;border:1px solid #ddd;padding:3px 6px;font-weight:600">${saldo != null ? fmt(Math.max(0,saldo)) : '—'}</td>
+      <td style="text-align:center;border:1px solid #ddd;padding:3px 6px">${isCurrent ? '← Próxima' : isPaid ? '✓' : ''}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('amort-print-area').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:2px solid #2d6a4f;padding-bottom:10px">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#2d6a4f">Parcelación Santa Teresita 2</div>
+        <div style="font-size:11px;color:#666">Ahuachapán, El Salvador · muzzoloinversiones@yahoo.com</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:14px;font-weight:700">TABLA DE AMORTIZACIÓN</div>
+        <div style="font-size:11px;color:#666">Lote ${loteId} · ${c ? c.nombre : ''}</div>
+        <div style="font-size:11px;color:#666">Impreso: ${new Date().toLocaleDateString('es-SV')}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;font-size:10px">
+      <div style="border:1px solid #ddd;padding:6px;border-radius:4px"><div style="color:#666">Valor del Lote</div><div style="font-weight:700">${fmt(loteInfo.valor)}</div></div>
+      <div style="border:1px solid #ddd;padding:6px;border-radius:4px"><div style="color:#666">Monto Financiado</div><div style="font-weight:700">${fmt(loteInfo.financiar)}</div></div>
+      <div style="border:1px solid #ddd;padding:6px;border-radius:4px"><div style="color:#666">Tasa Anual</div><div style="font-weight:700">${(loteInfo.tasa*100).toFixed(2)}%</div></div>
+      <div style="border:1px solid #ddd;padding:6px;border-radius:4px"><div style="color:#666">Cuota Mensual</div><div style="font-weight:700">${fmt(loteInfo.cuota)}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;font-size:10px">
+      <div style="background:#f0fff4;border:1px solid #95d5b2;padding:6px;border-radius:4px"><div style="color:#2d6a4f">Cuotas pagadas</div><div style="font-weight:700;font-size:13px">${cuotasPagadas} / 180</div></div>
+      <div style="background:#fdebd0;border:1px solid #f5c88a;padding:6px;border-radius:4px"><div style="color:#7a4a1a">Capital amortizado</div><div style="font-weight:700;font-size:13px">${fmt(totalCapital)}</div></div>
+      <div style="background:#fdecea;border:1px solid #f5a9a3;padding:6px;border-radius:4px"><div style="color:#7a1a1a">Saldo pendiente</div><div style="font-weight:700;font-size:13px">${fmt(saldoActual)}</div></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:10px">
+      <thead>
+        <tr style="background:#f0ece6">
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:center">N° Cuota</th>
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:center">Fecha de Pago</th>
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Saldo Anterior</th>
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Cuota</th>
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Intereses</th>
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Abono Capital</th>
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:right">Nuevo Saldo</th>
+          <th style="border:1px solid #ddd;padding:4px 6px;text-align:center">Estado</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:10px;font-size:9px;color:#999;text-align:center">
+      Parcelación Santa Teresita 2 · Tabla de amortización generada automáticamente · ${new Date().toLocaleDateString('es-SV')}
+    </div>`;
 
 // ═══════════════════════════════════════════════
 // CLOSE ON OVERLAY CLICK
