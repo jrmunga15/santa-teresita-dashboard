@@ -4051,14 +4051,20 @@ window.initFirestoreListeners = async function() {
   });
 
   onSnapshot(collection(db, 'lotes'), snap => {
-    if (!snap.empty) {
-      const firestoreLotes = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
-      // Merge with catalogoLotes geometry
-      lotes = catalogoLotes.map(cl => {
-        const fl = firestoreLotes.find(l => l.id === cl.id);
-        return fl ? { ...cl, ...fl } : cl;
-      });
-    }
+    const firestoreLotes = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+    // Merge: catalogoLotes (geometry) + datosFinancieros (financial = source of truth)
+    // Firestore ONLY provides: propietario_id, estado_plano, _docId (ownership data)
+    lotes = catalogoLotes.map(cl => {
+      const df = datosFinancieros[cl.id] || {};
+      const fl = firestoreLotes.find(l => l.id === cl.id);
+      const base = { ...cl, ...df };
+      if (fl) {
+        base._docId        = fl._docId;
+        base.propietario_id = fl.propietario_id ?? df.propietario_id ?? null;
+        base.estado_plano  = fl.estado_plano  ?? cl.estado_plano;
+      }
+      return base;
+    });
     renderDashboard();
   });
 };
@@ -4175,13 +4181,15 @@ window.guardarCliente = async function() {
 
     const loteIdx = lotes.findIndex(l => l.id === loteId);
     if (loteIdx >= 0) {
-      const loteActualizado = { ...lotes[loteIdx],
-        propietario_id: newId, valor, reserva, financiar, tasa, meses, cuota,
+      // Only save ownership to Firestore — financial data lives in code
+      const loteOwnership = {
+        id: loteId,
+        propietario_id: newId,
         estado_plano: tipo === 'contado' ? 'Vendido Contado' : 'Vendido a Plazo'
       };
       const { collection: col, doc, setDoc } = window._fbFns;
       const loteRef = doc(col(db, 'lotes'), loteId);
-      await setDoc(loteRef, loteActualizado, { merge: true });
+      await setDoc(loteRef, loteOwnership, { merge: true });
     }
   }
 
