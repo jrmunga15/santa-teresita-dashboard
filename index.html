@@ -1314,7 +1314,7 @@ const catalogoLotes = [
   { id:"C-17", area_m2:200.00, area_v2:286.16,     estado_plano:"Disponible" },
   { id:"C-18", area_m2:200.00, area_v2:286.16,     estado_plano:"Disponible" },
   { id:"C-19", area_m2:200.37, area_v2:286.689396, estado_plano:"Vendido a Plazo" },
-  { id:"C-20", area_m2:200.37, area_v2:286.689396, estado_plano:"Vendido a Plazo" },
+  { id:"C-20", area_m2:200.37, area_v2:286.689396, estado_plano:"Vendido Contado" },
   { id:"D-1",  area_m2:200.37, area_v2:286.689396, estado_plano:"Disponible" },
   { id:"D-2",  area_m2:203.00, area_v2:290.4524,   estado_plano:"Disponible" },
   { id:"D-3",  area_m2:203.00, area_v2:290.4524,   estado_plano:"Disponible" },
@@ -1385,7 +1385,7 @@ const datosFinancieros = {
   "C-1":  { propietario_id:null, valor:15000, reserva:500,  financiar:14500, tasa:0.105,  meses:180, cuota:160.00 },
   "C-2":  { propietario_id:null, valor:15000, reserva:500,  financiar:14500, tasa:0.105,  meses:180, cuota:160.00 },
   "C-19": { propietario_id:14, valor:15000, reserva:500,  financiar:14500, tasa:0.105,  meses:180, cuota:160.00 },
-  "C-20": { propietario_id:10, valor:15000, reserva:500,  financiar:14500, tasa:0.105,  meses:180, cuota:160.00 },
+  "C-20": { propietario_id:10, valor:15000, reserva:500,  financiar:0,     tasa:0,      meses:0,   cuota:0 },
   "D-17": { propietario_id:17, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
   "D-19": { propietario_id:17, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
   "F-1":  { propietario_id:23, valor:21500, reserva:1500, financiar:20000, tasa:0.105,  meses:0,   cuota:0 },
@@ -1799,20 +1799,33 @@ function calcIntereses(saldoAnterior, tasaAnual) {
 
 function buildReciboCopy(p, c, loteInfo, esCopia = false) {
   const tasaAnual = loteInfo ? loteInfo.tasa : 0.105;
+  const tasa_mensual = tasaAnual / 12;
+  const esCuota = p.concepto?.includes('/') || p.concepto === 'Abono';
 
-  // For cuota 1/180 (or 1/44), saldo anterior = financiar (valor - reserva)
-  // For subsequent cuotas, derive from recorded saldo + monto
+  // Derive saldo anterior correctly:
+  // For cuota 1/X → always use financiar (valor - reserva)
+  // For other cuotas → solve backwards: saldoAnt = nuevoSaldo + capital
+  //   where capital = monto - intereses, intereses = saldoAnt * tasa_mensual
+  //   so: saldoAnt - saldoAnt*tasa = nuevoSaldo + monto - saldoAnt*tasa ... 
+  //   simplest: saldoAnt = (p.saldo + p.monto) / (1 + tasa_mensual) ... no
+  //   Actually: intereses = saldoAnt * tasa_mensual, capital = monto - intereses
+  //   nuevoSaldo = saldoAnt - capital = saldoAnt - monto + saldoAnt*tasa_mensual
+  //   p.saldo = saldoAnt*(1 + tasa_mensual) - monto
+  //   saldoAnt = (p.saldo + p.monto) / (1 + tasa_mensual)
   const esPrimeraCuota = p.concepto && /^1\/\d+$/.test(p.concepto);
-  const saldoAnterior = esPrimeraCuota && loteInfo?.financiar
-    ? loteInfo.financiar
-    : p.saldo + p.monto;
+  let saldoAnterior;
+  if (!esCuota) {
+    saldoAnterior = p.saldo + p.monto;
+  } else if (esPrimeraCuota && loteInfo?.financiar) {
+    saldoAnterior = loteInfo.financiar;
+  } else {
+    // Solve: saldoAnt = (nuevoSaldo + monto) / (1 + tasa_mensual)
+    saldoAnterior = Math.round((p.saldo + p.monto) / (1 + tasa_mensual) * 100) / 100;
+  }
 
-  const intereses = p.concepto?.includes('/') || p.concepto === 'Abono'
-    ? calcIntereses(saldoAnterior, tasaAnual)
-    : 0;
+  const intereses = esCuota ? calcIntereses(saldoAnterior, tasaAnual) : 0;
   const abonoCapital = Math.round((p.monto - intereses) * 100) / 100;
   const nuevoSaldo = Math.round((saldoAnterior - abonoCapital) * 100) / 100;
-  const esCuota = p.concepto?.includes('/') || p.concepto === 'Abono';
   const descripcion = p.concepto === 'Reserva'
     ? 'Reserva Lote Parcelación Sta. Teresita 2'
     : p.concepto === 'Contado'
@@ -3122,7 +3135,6 @@ const LOTE_PAGO_INFO = {
   'C-1':  { dia: 2,  inicio: '2026-03' }, // reserva 02/02/2026
   'C-2':  { dia: 2,  inicio: '2026-03' }, // reserva 02/02/2026
   'C-19': { dia: 3,  inicio: '2026-03' }, // reserva 03/02/2026
-  'C-20': { dia: 27, inicio: '2026-02' }, // reserva 27/01/2026
   'D-17': { dia: 27, inicio: '2026-03' }, // reserva 27/02/2026
   'D-19': { dia: 27, inicio: '2026-03' }, // reserva 27/02/2026
   'H-6':  { dia: 28, inicio: '2026-02' }, // reserva 28/01/2026
