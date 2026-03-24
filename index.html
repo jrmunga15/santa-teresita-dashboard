@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sta. Teresita 2 — Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <!-- Firebase SDKs -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -3028,6 +3029,36 @@ function guardarCliente() {
 // ═══════════════════════════════════════════════
 // AVISO DE PAGO
 // ═══════════════════════════════════════════════
+function generarNombreArchivo(nombre, proximaCuota, totalCuotas) {
+  // Extract first apellido and first nombre
+  // Spanish names: "Roberto Antonio Rivas Gutierrez" → apellido=Rivas, nombre=Roberto
+  const partes = nombre.trim().split(/\s+/);
+  // Heuristic: if 4+ words, last two are apellidos, first two are nombres
+  // We want: primer_apellido + primer_nombre
+  let primerApellido, primerNombre;
+  if (partes.length >= 4) {
+    primerNombre   = partes[0];
+    primerApellido = partes[partes.length - 2]; // second-to-last = first apellido
+  } else if (partes.length === 3) {
+    primerNombre   = partes[0];
+    primerApellido = partes[1];
+  } else {
+    primerNombre   = partes[0] || 'Cliente';
+    primerApellido = partes[1] || '';
+  }
+
+  // Remove accents
+  const clean = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z]/g,'');
+
+  // Date ddmmyy
+  const hoy = new Date();
+  const dd   = String(hoy.getDate()).padStart(2,'0');
+  const mm   = String(hoy.getMonth()+1).padStart(2,'0');
+  const yy   = String(hoy.getFullYear()).slice(-2);
+
+  return `${clean(primerApellido)}_${clean(primerNombre)}_aviso_${proximaCuota}de${totalCuotas}_${dd}${mm}${yy}.pdf`;
+}
+
 function generarAvisoPago(cid, loteId) {
   const c = getCliente(cid);
   const loteInfo = getLote(loteId);
@@ -3053,7 +3084,7 @@ function generarAvisoPago(cid, loteId) {
 
   document.getElementById('aviso-print-btn').onclick = () => {
     closeModal('modal-aviso');
-    printWindow(avisoHTML, true);
+    guardarAvisoPDF(c, avisoHTML, proximaCuota, totalCuotas);
   };
 
   document.getElementById('aviso-whatsapp-btn').onclick = () => {
@@ -3066,6 +3097,34 @@ function generarAvisoPago(cid, loteId) {
   };
 
   openModal('modal-aviso');
+}
+
+function guardarAvisoPDF(c, avisoHTML, proximaCuota, totalCuotas) {
+  const filename = generarNombreArchivo(c.nombre, proximaCuota, totalCuotas);
+  const container = document.createElement('div');
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff';
+  container.innerHTML = avisoHTML.replace(/<(!DOCTYPE|html|\/html|head[\s\S]*?\/head|body[^>]*>|\/body)[^>]*>/gi, '');
+  document.body.appendChild(container);
+
+  const btn = document.getElementById('aviso-print-btn');
+  if (btn) { btn.textContent = '⏳ Generando...'; btn.disabled = true; }
+
+  html2pdf().set({
+    margin:      [12, 14, 12, 14],
+    filename:    filename,
+    image:       { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak:   { mode: 'avoid-all' }
+  }).from(container).save().then(() => {
+    document.body.removeChild(container);
+    if (btn) { btn.textContent = '⬇ Guardar PDF'; btn.disabled = false; }
+  }).catch(err => {
+    document.body.removeChild(container);
+    console.error('PDF error:', err);
+    if (btn) { btn.textContent = '⬇ Guardar PDF'; btn.disabled = false; }
+    alert('Error al generar PDF. Intenta de nuevo.');
+  });
 }
 
 function buildAvisoHTML(c, loteInfo, loteId, proximaCuota, totalCuotas, diaPago, incluirDespacho) {
@@ -4296,7 +4355,7 @@ window.guardarEdicionPerfil = async function(cid) {
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-aviso')">Cancelar</button>
       <button class="btn btn-secondary" id="aviso-whatsapp-btn">💬 WhatsApp</button>
-      <button class="btn btn-primary" id="aviso-print-btn">🖨 Imprimir</button>
+      <button class="btn btn-primary" id="aviso-print-btn">⬇ Guardar PDF</button>
     </div>
   </div>
 </div>
