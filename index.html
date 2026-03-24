@@ -417,31 +417,22 @@
   .text-right { text-align: right; }
 
   @media print {
-    /* Hide UI chrome */
+    /* ── Ocultar chrome de la app siempre ── */
     .sidebar, .topbar, .no-print,
-    .modal-overlay, #login-screen { display: none !important; }
+    .modal-footer, .modal-close,
+    #login-screen { display: none !important; }
 
-    body, #app-shell { visibility: visible !important; background: #fff !important; }
+    body { visibility: hidden !important; background: #fff !important; }
 
-    /* ── RECIBO (modal abierto) ── */
-    .modal-overlay.open {
-      display: block !important;
-      position: static !important;
-      background: none !important;
-    }
-    .modal-overlay.open .modal {
-      box-shadow: none !important;
-      max-width: 100% !important;
-      width: 100% !important;
-    }
-    .modal-footer { display: none !important; }
-    .modal-header .modal-close { display: none !important; }
+    /* ── CASO 1: Recibo (modal abierto) ── */
+    .modal-overlay.open { display: block !important; position: static !important; background: none !important; }
+    .modal-overlay.open *,
+    .modal-overlay.open { visibility: visible !important; }
+    .modal-overlay.open .modal { box-shadow: none !important; max-width:100% !important; width:100% !important; border:none !important; }
 
-    /* ── AMORTIZACIÓN ── */
-    body * { visibility: hidden; }
-    #amort-print-area, #amort-print-area *,
-    .modal-overlay.open, .modal-overlay.open * { visibility: visible !important; }
-
+    /* ── CASO 2: Perfil cliente y Amortización (amort-print-area) ── */
+    #amort-print-area { display: block !important; visibility: visible !important; }
+    #amort-print-area * { visibility: visible !important; }
     #amort-print-area {
       position: fixed !important;
       inset: 0 !important;
@@ -450,20 +441,12 @@
       font-family: 'DM Sans', sans-serif !important;
       font-size: 11px !important;
       color: #000 !important;
+      z-index: 9999 !important;
     }
     #amort-print-area table { width: 100%; border-collapse: collapse; }
     #amort-print-area th { background: #f0ece6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     #amort-print-area .paid-row { background: #f0fff4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     #amort-print-area .current-row { background: #fdebd0 !important; font-weight: 700 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
-    /* ── RECIBO visible ── */
-    .recibo-wrap, .recibo-wrap * { visibility: visible !important; }
-    .recibo-wrap {
-      position: fixed !important;
-      inset: 0 !important;
-      background: #fff !important;
-      padding: 20px !important;
-    }
   }
 </style>
 </head>
@@ -1107,7 +1090,7 @@
 </div>
 
 <!-- Hidden print-only area for amortization table -->
-<div id="amort-print-area" style="display:none"></div>
+<div id="amort-print-area" style="visibility:hidden;position:absolute;pointer-events:none"></div>
 
 <script>
 // ═══════════════════════════════════════════════
