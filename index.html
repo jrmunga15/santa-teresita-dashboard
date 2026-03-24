@@ -1800,18 +1800,9 @@ function calcIntereses(saldoAnterior, tasaAnual) {
 function buildReciboCopy(p, c, loteInfo, esCopia = false) {
   const tasaAnual = loteInfo ? loteInfo.tasa : 0.105;
   const tasa_mensual = tasaAnual / 12;
-  const esCuota = p.concepto?.includes('/') || p.concepto === 'Abono';
+  const tieneplazo = loteInfo?.meses > 0;  // only charge interest on plazo lots
+  const esCuota = tieneplazo && (p.concepto?.includes('/') || p.concepto === 'Abono');
 
-  // Derive saldo anterior correctly:
-  // For cuota 1/X → always use financiar (valor - reserva)
-  // For other cuotas → solve backwards: saldoAnt = nuevoSaldo + capital
-  //   where capital = monto - intereses, intereses = saldoAnt * tasa_mensual
-  //   so: saldoAnt - saldoAnt*tasa = nuevoSaldo + monto - saldoAnt*tasa ... 
-  //   simplest: saldoAnt = (p.saldo + p.monto) / (1 + tasa_mensual) ... no
-  //   Actually: intereses = saldoAnt * tasa_mensual, capital = monto - intereses
-  //   nuevoSaldo = saldoAnt - capital = saldoAnt - monto + saldoAnt*tasa_mensual
-  //   p.saldo = saldoAnt*(1 + tasa_mensual) - monto
-  //   saldoAnt = (p.saldo + p.monto) / (1 + tasa_mensual)
   const esPrimeraCuota = p.concepto && /^1\/\d+$/.test(p.concepto);
   let saldoAnterior;
   if (!esCuota) {
@@ -1819,7 +1810,6 @@ function buildReciboCopy(p, c, loteInfo, esCopia = false) {
   } else if (esPrimeraCuota && loteInfo?.financiar) {
     saldoAnterior = loteInfo.financiar;
   } else {
-    // Solve: saldoAnt = (nuevoSaldo + monto) / (1 + tasa_mensual)
     saldoAnterior = Math.round((p.saldo + p.monto) / (1 + tasa_mensual) * 100) / 100;
   }
 
@@ -1879,7 +1869,11 @@ function buildReciboCopy(p, c, loteInfo, esCopia = false) {
       <div class="rc-grid-top" style="border-top:none;">
         <div class="rc-cell" style="grid-column:1/3;border-right:none"></div>
         <div class="rc-cell" style="font-size:10px">Valor cuota mensual: <strong>${loteInfo ? fmt(loteInfo.cuota) : '—'}</strong></div>
-        <div class="rc-cell" style="grid-column:1/3;border-right:none;font-size:10px">Fecha de Pago: <strong>${p.fecha ? new Date(p.fecha+'T12:00:00').getDate()+' de cada Mes' : '—'}</strong></div>
+        <div class="rc-cell" style="grid-column:1/3;border-right:none;font-size:10px">Fecha de Pago: <strong>${(() => {
+          const primerPago = pagos.filter(px => px.lote === p.lote).sort((a,b) => a.fecha.localeCompare(b.fecha))[0];
+          const fechaRef = primerPago ? primerPago.fecha : p.fecha;
+          return fechaRef ? new Date(fechaRef+'T12:00:00').getDate()+' de cada Mes' : '—';
+        })()}</strong></div>
         <div class="rc-cell" style="font-size:10px"></div>
       </div>
       <div class="rc-desc-header">
@@ -2580,14 +2574,17 @@ function verPerfilCliente(cid) {
   misLotes.forEach(loteInfo => {
     const loteId = loteInfo.id;
     const tasa = loteInfo.tasa||0.105;
+    const tienePlazo = loteInfo.meses > 0;
     const pagosDeLote = pagos.filter(p=>p.lote===loteId).sort((a,b)=>a.fecha.localeCompare(b.fecha));
     const last = pagosDeLote[pagosDeLote.length-1];
     const saldo = last ? last.saldo||0 : loteInfo.financiar||0;
     const cuotasPagadas = pagosDeLote.filter(p=>p.concepto&&/^\d+\/\d+$/.test(p.concepto)).length;
     const totalLote = pagosDeLote.reduce((s,p)=>s+(p.monto||0),0);
     const reservaMonto = pagosDeLote.find(p=>p.concepto==='Reserva')?.monto||0;
-    const interesesTotal = pagosDeLote.filter(p=>p.concepto&&/^\d+\/\d+$/.test(p.concepto))
-      .reduce((s,p)=>s+calcIntereses((p.saldo||0)+(p.monto||0),tasa),0);
+    const interesesTotal = tienePlazo
+      ? pagosDeLote.filter(p=>p.concepto&&/^\d+\/\d+$/.test(p.concepto))
+          .reduce((s,p)=>s+calcIntereses((p.saldo||0)+(p.monto||0),tasa),0)
+      : 0;
     const capitalTotal = Math.max(0, totalLote - reservaMonto - interesesTotal);
     const pct = loteInfo.meses>0 ? Math.round((cuotasPagadas/loteInfo.meses)*100) : 0;
 
@@ -2671,7 +2668,7 @@ function verPerfilCliente(cid) {
         </tr></thead>
         <tbody>
           ${pagosDeLote.map(p=>{
-            const esCuota = p.concepto&&/^\d+\/\d+$/.test(p.concepto);
+            const esCuota = tienePlazo && p.concepto&&/^\d+\/\d+$/.test(p.concepto);
             const int_ = esCuota?calcIntereses((p.saldo||0)+(p.monto||0),tasa):0;
             const cap_ = esCuota?Math.round(((p.monto||0)-int_)*100)/100:0;
             return `<tr style="border-top:1px solid var(--border)">
@@ -2946,13 +2943,13 @@ function calcSaldoLote(loteId) {
   let historial = [];
 
   pagosDeLote.forEach((p, i) => {
-    const esCuota = p.concepto?.includes('/') || p.concepto === 'Abono' || p.concepto === 'Pago Saldo';
+    const tienePlazo = loteInfo.meses > 0;
+    const esCuota = tienePlazo && (p.concepto?.includes('/') || p.concepto === 'Abono' || p.concepto === 'Pago Saldo');
     const saldoAnterior = p.saldo + p.monto;
     let intereses = 0, abonoCapital = p.monto;
 
     if (esCuota && saldoAnterior > 0) {
       intereses = Math.round(saldoAnterior * tasaMensual * 100) / 100;
-      // cap intereses to monto
       if (intereses > p.monto) intereses = p.monto;
       abonoCapital = Math.round((p.monto - intereses) * 100) / 100;
     }
