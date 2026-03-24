@@ -26,14 +26,12 @@
   const auth = getAuth(app);
   const db   = getFirestore(app);
 
-  // ── Expose to global scope so non-module scripts can use them ──
   window._db      = db;
   window._auth    = auth;
   window._fbFns   = { collection, doc, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, writeBatch, signOut };
 
-  // ── Auth state watcher ──
   onAuthStateChanged(auth, user => {
-    document.body.style.visibility = 'visible'; // reveal only after auth check
+    document.body.style.visibility = 'visible';
     if (user) {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app-shell').style.display = 'block';
@@ -47,7 +45,6 @@
     }
   });
 
-  // ── Login handler ──
   window.doLogin = async () => {
     const email = document.getElementById('login-email').value.trim();
     const pass  = document.getElementById('login-pass').value;
@@ -75,6 +72,7 @@
     await signOut(auth);
   };
 </script>
+
 <style>
   :root {
     --bg: #f5f2ec;
@@ -607,6 +605,9 @@
 <!-- Sidebar overlay for mobile -->
 <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
+<!-- ═══ APP SHELL ═══ -->
+
+
 <!-- SIDEBAR -->
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-logo">
@@ -743,7 +744,9 @@
             <option value="">Todos los meses</option>
           </select>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openModal('modal-pago')">+ Registrar Pago</button>
+        <span id="topbar-user" style="font-size:12px;color:var(--text-muted);margin-right:8px"></span>
+      <button class="btn btn-secondary btn-sm" onclick="doLogout()" style="margin-right:8px">Salir</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-pago')">+ Registrar Pago</button>
       </div>
       <div class="card">
         <div class="table-wrap">
