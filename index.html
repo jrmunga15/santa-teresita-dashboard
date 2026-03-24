@@ -1803,14 +1803,8 @@ function renderCotizacion() {
             <span style="color:var(--accent);font-weight:600">Cuota mensual</span>
             <strong style="color:var(--accent);font-size:18px">${fmt(cuota)}</strong>
           </div>
-          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:13px">
             <span style="color:var(--text-muted)">Plazo</span><span>180 meses (15 años)</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-            <span style="color:var(--text-muted)">Total intereses</span><span style="color:var(--amber)">${fmt(totalInteres)}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:14px">
-            <strong>Costo total del lote</strong><strong style="color:var(--red)">${fmt(totalPlazo)}</strong>
           </div>` : `
           <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px">
             <strong>Pago único de contado</strong><strong style="color:var(--accent)">${fmt(valor)}</strong>
@@ -1820,7 +1814,16 @@ function renderCotizacion() {
       <div style="padding:16px 20px;background:var(--surface2);font-size:11px;color:var(--text-muted);text-align:center;font-style:italic">
         Esta cotización es válida por 30 días · Parcelación Santa Teresita 2, "Tu pedacito de Cielo"
       </div>
-    </div>`;
+    </div>
+    ${tipo === 'plazo' ? `
+    <div class="no-print" style="margin-top:12px;background:#fdecea;border:1px solid #f5a9a3;border-radius:var(--radius-sm);padding:14px 18px">
+      <div style="font-size:11px;font-weight:700;color:#7a1a1a;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">🔒 Solo para uso interno — no se imprime</div>
+      <div style="display:flex;gap:24px;font-size:13px;flex-wrap:wrap">
+        <div><span style="color:#7a1a1a">Total intereses cobrados:</span> <strong style="color:var(--red)">${fmt(totalInteres)}</strong></div>
+        <div><span style="color:#7a1a1a">Costo total para el cliente:</span> <strong style="color:var(--red)">${fmt(totalPlazo)}</strong></div>
+        <div><span style="color:#7a1a1a">Retorno sobre precio:</span> <strong style="color:var(--red)">${((totalPlazo/valor - 1)*100).toFixed(1)}% adicional</strong></div>
+      </div>
+    </div>` : ''}`;
 }
 
 function imprimirCotizacion() {
