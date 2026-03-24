@@ -1964,6 +1964,7 @@ function buildReciboHTML(p) {
 }
 
 let _reciboActivoId = null;
+let _perfilActivoCid = null;
 
 function verRecibo(id) {
   const p = pagos.find(x => x.id === id);
@@ -2533,44 +2534,57 @@ function guardarCliente() {
 }
 
 function borrarPerfilCliente() {
-  const titulo = document.getElementById('perfil-titulo').textContent;
-  const c = clientes.find(c => c.nombre === titulo);
-  if (!c) return;
+  const cid = _perfilActivoCid;
+  if (!cid) return;
+  const c = getCliente(cid);
+  if (!c || !c.nombre) return;
 
-  const misLotes = lotes.filter(l => l.propietario_id === c.id);
-  const lotesList = misLotes.length ? '\nLotes asignados: ' + misLotes.map(l => l.id).join(', ') : '';
-  const pagosList = pagos.filter(p => p.cliente_id === c.id).length;
+  const misLotes = lotes.filter(l => l.propietario_id === cid);
+  const pagosCnt = pagos.filter(p => p.cliente_id === cid).length;
+  const lotesList = misLotes.length ? '\nLotes asignados: ' + misLotes.map(l => l.id).join(', ') + ' — quedarán disponibles.' : '\nSin lotes asignados.';
 
-  const confirmMsg = `¿Borrar el perfil de ${c.nombre}?\n\n` +
-    `${lotesList ? lotesList + ' — quedarán disponibles.' : 'Sin lotes asignados.'}` +
-    `\nPagos registrados: ${pagosList}` +
-    `\n\nEsta acción NO borra los pagos del historial.\n¿Continuar?`;
+  if (!confirm(`¿Borrar el perfil de ${c.nombre}?\n${lotesList}\nPagos registrados: ${pagosCnt}\n\nEsta acción NO borra los pagos del historial.\n¿Continuar?`)) return;
 
-  if (!confirm(confirmMsg)) return;
-
-  // Free up lotes
+  // Free up lotes — update in memory and Firestore
   misLotes.forEach(l => {
     const idx = lotes.findIndex(x => x.id === l.id);
     if (idx >= 0) {
       lotes[idx].propietario_id = null;
-      lotes[idx].estado_plano = 'Disponible';
+      lotes[idx].estado_plano   = 'Disponible';
+      lotes[idx].valor          = 0;
+      lotes[idx].reserva        = 0;
+      lotes[idx].financiar      = 0;
+      lotes[idx].tasa           = 0;
+      lotes[idx].meses          = 0;
+      lotes[idx].cuota          = 0;
+
+      // Sync to Firestore
+      if (window._db && lotes[idx]._docId) {
+        const { collection, doc, setDoc } = window._fbFns;
+        setDoc(doc(collection(window._db, 'lotes'), lotes[idx]._docId), lotes[idx], { merge: true });
+      } else if (window._db) {
+        // Lote may not have a Firestore doc yet — delete entry if exists
+        const { collection, doc, deleteDoc } = window._fbFns;
+        // Try to find by lote id in Firestore — handled by onSnapshot refresh
+      }
     }
   });
 
-  // Remove cliente
-  const idx = clientes.findIndex(x => x.id === c.id);
+  // Remove cliente from memory
+  const idx = clientes.findIndex(x => x.id === cid);
   if (idx >= 0) clientes.splice(idx, 1);
 
-  // Sync to Firestore if connected
+  // Delete from Firestore
   if (window._db && c._docId) {
     const { collection, doc, deleteDoc } = window._fbFns;
     deleteDoc(doc(collection(window._db, 'clientes'), c._docId));
   }
 
+  _perfilActivoCid = null;
   closeModal('modal-perfil-cliente');
   renderDashboard();
   renderClientes();
-  alert(`✅ Perfil de ${c.nombre} eliminado. ${misLotes.length ? 'Lotes liberados: ' + misLotes.map(l=>l.id).join(', ') : ''}`);
+  alert(`✅ Perfil de ${c.nombre} eliminado.${misLotes.length ? '\nLotes liberados: ' + misLotes.map(l=>l.id).join(', ') : ''}`);
 }
 
 function verPerfilCliente(cid) {
@@ -2795,6 +2809,7 @@ function verPerfilCliente(cid) {
   </div>`;
 
   document.getElementById('perfil-body').innerHTML = html;
+  _perfilActivoCid = cid;
   openModal('modal-perfil-cliente');
 }
 
