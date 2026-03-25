@@ -2394,7 +2394,7 @@ function calcIntereses(saldoAnterior, tasaAnual) {
 function buildReciboCopy(p, c, loteInfo, esCopia = false) {
   const tasaAnual = loteInfo ? loteInfo.tasa : 0.105;
   const tasa_mensual = tasaAnual / 12;
-  const tieneplazo = loteInfo?.meses > 0;  // only charge interest on plazo lots
+  const tieneplazo = loteInfo?.meses > 0;
   const esCuota = tieneplazo && (p.concepto?.includes('/') || p.concepto === 'Abono');
 
   const esPrimeraCuota = p.concepto && /^1\/\d+$/.test(p.concepto);
@@ -2416,89 +2416,96 @@ function buildReciboCopy(p, c, loteInfo, esCopia = false) {
     ? 'Pago de Contado Lote Parcelación Sta. Teresita 2'
     : `Abono Cuota ${p.concepto} Lote Parc. Sta. Teresita 2`;
 
-  const watermark = esCopia ? `
-    <div style="
-      position:absolute; inset:0;
-      display:flex; align-items:center; justify-content:center;
-      pointer-events:none; z-index:10;
-      overflow:hidden;
-    ">
-      <span style="
-        font-size:72px; font-weight:900;
-        color:rgba(180,0,0,0.10);
-        transform:rotate(-35deg);
-        letter-spacing:0.12em;
-        white-space:nowrap;
-        user-select:none;
-        font-family:'DM Serif Display',serif;
-      ">COPIA</span>
-    </div>` : '';
+  const primerPago = pagos.filter(px => px.lote === p.lote).sort((a,b) => a.fecha.localeCompare(b.fecha))[0];
+  const fechaRef = primerPago ? primerPago.fecha : p.fecha;
+  const diaPago = fechaRef ? new Date(fechaRef+'T12:00:00').getDate()+' de cada Mes' : '—';
+  const terminos = loteInfo && loteInfo.meses > 0 ? 'Crédito a 15 años' : 'Contado';
 
-  return `
-    <div class="recibo-copy" style="position:relative">
-      ${watermark}
-      <div class="rc-top">
-        <div class="rc-empresa">
-          <div>Muzzolo Inversiones S.A.S. de C.V.</div>
-          <div class="ciudad">Ahuachapán</div>
-          <div class="tel">Teléfono/ Wapp: (503) 7969-2069</div>
-          <div class="email">E-mail: muzzoloinversiones@yahoo.com</div>
-        </div>
-        <div class="rc-recibo-lbl">RECIBO</div>
-      </div>
-      <div class="rc-grid-top">
-        <div class="rc-cell lbl">CLIENTE</div>
-        <div class="rc-cell lbl">N.º DE RECIBO</div>
-        <div class="rc-cell lbl">FECHA</div>
-        <div class="rc-cell val" style="text-align:left;font-weight:400">${c.nombre||'—'}</div>
-        <div class="rc-cell val">${p.recibo || '—'}</div>
-        <div class="rc-cell val">${fmtDate(p.fecha)}</div>
-        <div class="rc-cell" style="font-size:11px;">No. de Lote: <strong>${p.lote}</strong></div>
-        <div class="rc-cell lbl">ID. DEL CLIENTE</div>
-        <div class="rc-cell lbl">TÉRMINOS</div>
-        <div class="rc-cell" style="font-size:10px;">DUI / Pasaporte: <strong>${c.dui||'—'}</strong></div>
-        <div class="rc-cell val" style="font-size:12px;font-weight:700;color:#2d6a4f">${c.codigo||'—'}</div>
-        <div class="rc-cell val" style="font-size:11px">${loteInfo && loteInfo.meses > 0 ? 'Crédito a 15 años' : 'Contado'}</div>
-      </div>
-      <div class="rc-grid-top" style="border-top:none;">
-        <div class="rc-cell" style="grid-column:1/3;border-right:none"></div>
-        ${loteInfo && loteInfo.meses > 0 ? `<div class="rc-cell" style="font-size:10px">Valor cuota mensual: <strong>${loteInfo ? fmt(loteInfo.cuota) : '—'}</strong></div>` : '<div class="rc-cell"></div>'}
-        ${loteInfo && loteInfo.meses > 0 ? `<div class="rc-cell" style="grid-column:1/3;border-right:none;font-size:10px">Fecha de Pago: <strong>${(() => {
-          const primerPago = pagos.filter(px => px.lote === p.lote).sort((a,b) => a.fecha.localeCompare(b.fecha))[0];
-          const fechaRef = primerPago ? primerPago.fecha : p.fecha;
-          return fechaRef ? new Date(fechaRef+'T12:00:00').getDate()+' de cada Mes' : '—';
-        })()}</strong></div><div class="rc-cell" style="font-size:10px"></div>` : '<div class="rc-cell" style="grid-column:1/3;border-right:none"></div><div class="rc-cell"></div>'}
-      </div>
-      <div class="rc-desc-header">
-        <div class="rc-cell-desc lbl">DESCRIPCIÓN</div>
-        <div class="rc-cell-desc lbl center" style="border-left:1px solid #bbb">CANT.</div>
-        <div class="rc-cell-desc lbl center" style="border-left:1px solid #bbb">Detalle</div>
-        <div class="rc-cell-desc lbl center" style="border-left:1px solid #bbb">MONTO</div>
-      </div>
-      <div class="rc-desc-row" style="border-top:none">
-        <div class="rc-cell-desc">${descripcion}</div>
-        <div class="rc-cell-desc center" style="border-left:1px solid #bbb">1</div>
-        <div class="rc-cell-desc right" style="border-left:1px solid #bbb">${fmt(p.monto)}</div>
-        <div class="rc-cell-desc right" style="border-left:1px solid #bbb">${fmt(p.monto)}</div>
-      </div>
+  const fmtW = v => {
+    const n = Number(v);
+    return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+
+  const watermark = esCopia ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:10;overflow:hidden;">
+    <span style="font-size:80px;font-weight:900;color:rgba(180,0,0,0.09);transform:rotate(-35deg);letter-spacing:0.12em;white-space:nowrap;font-family:Courier,monospace;">COPIA</span>
+  </div>` : '';
+
+  const td  = 'style="border:1px solid #000;padding:2px 5px;font-family:Courier,\'Courier New\',monospace;font-size:11px;"';
+  const tdg = 'style="border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,\'Courier New\',monospace;font-size:11px;font-weight:bold;"';
+  const tdr = 'style="border:1px solid #000;padding:2px 5px;font-family:Courier,\'Courier New\',monospace;font-size:11px;text-align:right;"';
+  const tdgr= 'style="border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,\'Courier New\',monospace;font-size:11px;font-weight:bold;text-align:right;"';
+
+  return `<div style="position:relative;font-family:Courier,'Courier New',monospace;font-size:11px;padding:10px 14px;background:#fff;">
+    ${watermark}
+    <table style="width:100%;border-collapse:collapse;margin-bottom:4px;">
+      <tr>
+        <td style="width:60%;border:none;padding:0;font-family:Courier,'Courier New',monospace;font-size:11px;vertical-align:top;">
+          <div style="font-size:13px;font-weight:bold;">Muzzolo Inversiones S.A.S. de C.V.</div>
+          <div>Ahuachapán</div>
+          <div>Teléfono/ Wapp: (503) 7969-2069</div>
+          <div>E-mail: muzzoloinversiones@yahoo.com</div>
+        </td>
+        <td style="width:20%;border:1px solid #000;padding:2px 5px;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;vertical-align:middle;">N.º DE RECIBO</td>
+        <td style="width:20%;border:1px solid #000;padding:2px 5px;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;vertical-align:middle;text-align:right;">FECHA</td>
+      </tr>
+      <tr>
+        <td style="border:none;padding:0;font-family:Courier,'Courier New',monospace;font-size:14px;font-weight:bold;padding-top:2px;">RECIBO</td>
+        <td ${td}>${p.recibo || 'xxxxxxxx'}</td>
+        <td ${tdr}>${fmtDate(p.fecha)}</td>
+      </tr>
+    </table>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:0;">
+      <tr>
+        <td ${tdg} style="width:35%;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">CLIENTE</td>
+        <td ${tdg} style="width:35%;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">ID. DEL CLIENTE</td>
+        <td ${tdg} style="width:30%;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">TÉRMINOS</td>
+      </tr>
+      <tr>
+        <td ${td}>${c.nombre||'—'}</td>
+        <td ${td} style="color:#2d6a4f;font-weight:bold;">${c.codigo||'—'}</td>
+        <td ${td}>${terminos}</td>
+      </tr>
+      <tr>
+        <td ${td}>No. de Lote: <strong>${p.lote}</strong></td>
+        <td ${td}>${tieneplazo ? 'Valor cuota mensual' : ''}</td>
+        <td ${tdr}>${tieneplazo ? fmtW(loteInfo.cuota) : ''}</td>
+      </tr>
+      <tr>
+        <td ${td}>DUI / Pasaporte: <strong>${c.dui||'—'}</strong></td>
+        <td ${td}>${tieneplazo ? 'Fecha de Pago:' : ''}</td>
+        <td ${tdr}>${tieneplazo ? diaPago : ''}</td>
+      </tr>
+    </table>
+    <table style="width:100%;border-collapse:collapse;margin-top:0;">
+      <tr>
+        <td ${tdg} style="width:50%;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">DESCRIPCIÓN</td>
+        <td ${tdg} style="width:10%;text-align:center;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">CANT.</td>
+        <td ${tdg} style="width:20%;text-align:right;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">Detalle</td>
+        <td ${tdg} style="width:20%;text-align:right;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">MONTO</td>
+      </tr>
+      <tr>
+        <td ${td}>${descripcion}</td>
+        <td ${td} style="text-align:center;">1</td>
+        <td ${tdr}>${fmtW(p.monto)}</td>
+        <td ${tdr}>${fmtW(p.monto)}</td>
+      </tr>
+      <tr><td ${td}>Saldo Anterior</td><td ${td}></td><td ${tdr}>${fmtW(saldoAnterior)}</td><td ${td}></td></tr>
       ${esCuota ? `
-      <div class="rc-detail-row"><div class="rc-detail-label">Saldo Anterior</div><div class="rc-detail-val">${fmt(saldoAnterior)}</div></div>
-      <div class="rc-detail-row"><div class="rc-detail-label">Pago Intereses</div><div class="rc-detail-val">${fmt(intereses)}</div></div>
-      <div class="rc-detail-row"><div class="rc-detail-label">Abono a Capital</div><div class="rc-detail-val">${fmt(abonoCapital)}</div></div>
-      <div class="rc-detail-row" style="border-top:1px solid #bbb"><div class="rc-detail-label rc-bold">Nuevo Saldo</div><div class="rc-detail-val rc-bold">${fmt(nuevoSaldo)}</div></div>
-      ` : `
-      <div class="rc-detail-row"><div class="rc-detail-label">Saldo Anterior</div><div class="rc-detail-val">${fmt(p.saldo + p.monto)}</div></div>
-      <div class="rc-detail-row" style="border-top:1px solid #bbb"><div class="rc-detail-label rc-bold">Nuevo Saldo</div><div class="rc-detail-val rc-bold">${fmt(p.saldo)}</div></div>
-      `}
-      <div class="rc-total-row">
-        <div class="rc-cell-desc" style="grid-column:1/4;font-style:italic;font-weight:700;color:#2d6a4f">Parcelación Santa Teresita 2, "Tu pedacito de Cielo".</div>
-        <div class="rc-cell-desc lbl right" style="border-left:1px solid #bbb">TOTAL</div>
-      </div>
-      <div class="rc-total-row" style="border-top:none">
-        <div class="rc-cell-desc" style="grid-column:1/4"></div>
-        <div class="rc-cell-desc right rc-bold" style="border-left:1px solid #bbb">${fmt(p.monto)}</div>
-      </div>
-    </div>`;
+      <tr><td ${td}>Pago Intereses</td><td ${td}></td><td ${tdr}>${fmtW(intereses)}</td><td ${td}></td></tr>
+      <tr><td ${td}>Abono a Capital</td><td ${td}></td><td ${tdr}>${fmtW(abonoCapital)}</td><td ${td}></td></tr>
+      ` : ''}
+      <tr>
+        <td ${td} colspan="2" style="border:1px solid #000;padding:2px 5px;font-family:Courier,'Courier New',monospace;font-size:11px;font-style:italic;color:#2d6a4f;font-weight:bold;">Parcelación Santa Teresita 2, "Tu pedacito de Cielo".</td>
+        <td ${tdg} style="text-align:right;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">TOTAL</td>
+        <td ${tdr}>${fmtW(p.monto)}</td>
+      </tr>
+      <tr>
+        <td ${tdg} colspan="2" style="border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">Nuevo Saldo</td>
+        <td ${tdr}>${fmtW(esCuota ? nuevoSaldo : p.saldo)}</td>
+        <td ${td}></td>
+      </tr>
+    </table>
+  </div>`;
 }
 
 function buildReciboHTML(p) {
@@ -2506,10 +2513,16 @@ function buildReciboHTML(p) {
   const loteInfo = getLote(p.lote);
   const original = buildReciboCopy(p, c, loteInfo, false);
   const copia    = buildReciboCopy(p, c, loteInfo, true);
-  return `<div class="recibo-wrap">${original}
-    <div style="text-align:center;font-size:10px;color:#999;margin:4px 0;letter-spacing:0.05em">✂ — — — — — — — — — — — — — — — — — —</div>
-    ${copia}
-  </div>`;
+  return `
+    <div style="font-family:Courier,'Courier New',monospace;width:100%;box-sizing:border-box;">
+      <div style="min-height:47vh;display:flex;flex-direction:column;justify-content:center;padding:8px 0;">
+        ${original}
+      </div>
+      <div style="border-top:2px dashed #555;margin:4px 0;"></div>
+      <div style="min-height:47vh;display:flex;flex-direction:column;justify-content:center;padding:8px 0;">
+        ${copia}
+      </div>
+    </div>`;
 }
 
 let _reciboActivoId = null;
@@ -2607,7 +2620,7 @@ function previewRecibo(id) {
 // ═══════════════════════════════════════════════
 const PRINT_CSS = `
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'DM Sans',sans-serif; font-size:11px; color:#000; background:#fff; padding:16px 20px; }
+  body { font-family:Courier,'Courier New',monospace; font-size:11px; color:#000; background:#fff; padding:8px 14px; }
   table { width:100%; border-collapse:collapse; }
   .badge { display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500; }
   .badge-green { background:#d8f3dc;color:#2d6a4f; }
@@ -2620,37 +2633,9 @@ const PRINT_CSS = `
   th { background:#f0ece6; }
   button, .no-print { display:none !important; }
   img { max-width:140px; }
-  /* ── Recibo styles ── */
-  .recibo-wrap { font-family:'DM Sans',sans-serif; font-size:11px; max-width:100%; margin:0 auto; }
-  .recibo-copy { border:1px solid #bbb; padding:12px 16px; margin-bottom:8px; background:#fff; position:relative; }
-  .recibo-copy + .recibo-copy { border-top:2px dashed #999; margin-top:0; }
-  .rc-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:5px; }
-  .rc-empresa { font-weight:700; font-size:12px; }
-  .rc-empresa .ciudad { font-weight:700; font-size:11px; }
-  .rc-empresa .tel { font-weight:700; font-size:10px; }
-  .rc-empresa .email { font-weight:400; font-size:10px; color:#555; }
-  .rc-recibo-lbl { font-weight:700; font-size:18px; letter-spacing:0.05em; color:#222; }
-  .rc-grid-top { display:grid; grid-template-columns:1fr 1fr 1fr; border:1px solid #bbb; margin-bottom:0; }
-  .rc-cell { border:1px solid #bbb; padding:3px 7px; font-size:10px; }
-  .rc-cell.lbl { font-weight:700; text-align:center; background:#f5f5f5; }
-  .rc-cell.val { text-align:center; font-weight:700; }
-  .rc-client-row { display:grid; grid-template-columns:1fr 1fr 1fr; border:1px solid #bbb; border-top:none; }
-  .rc-desc-header { display:grid; grid-template-columns:1fr 55px 85px 85px; border:1px solid #bbb; border-top:none; }
-  .rc-desc-row { display:grid; grid-template-columns:1fr 55px 85px 85px; border-left:1px solid #bbb; border-right:1px solid #bbb; }
-  .rc-detail-row { display:grid; grid-template-columns:1fr 160px; border-left:1px solid #bbb; border-right:1px solid #bbb; border-top:1px solid #eee; }
-  .rc-total-row { display:grid; grid-template-columns:1fr 55px 85px 85px; border:1px solid #bbb; border-top:1px solid #bbb; }
-  .rc-footer-row { display:flex; justify-content:space-between; align-items:center; border:1px solid #bbb; border-top:none; padding:5px 8px; font-size:10px; font-weight:700; font-style:italic; color:#2d6a4f; }
-  .rc-cell-desc { padding:3px 7px; font-size:10px; }
-  .rc-cell-desc.lbl { font-weight:700; background:#f5f5f5; text-align:center; }
-  .rc-cell-desc.right { text-align:right; }
-  .rc-cell-desc.center { text-align:center; }
-  .rc-detail-label { padding:2px 7px; font-size:10px; }
-  .rc-detail-val { padding:2px 7px; font-size:10px; text-align:right; border-left:1px solid #eee; }
-  .rc-bold { font-weight:700; }
   @media print {
-    @page { margin:8mm; size:letter; }
+    @page { margin:6mm; size:letter; }
     body { padding:0; }
-    .recibo-copy { page-break-inside:avoid; }
   }
 `;
 
