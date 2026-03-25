@@ -2505,9 +2505,10 @@ function buildReciboHTML(p) {
   const loteInfo = getLote(p.lote);
   const original = buildReciboCopy(p, c, loteInfo, false);
   const copia    = buildReciboCopy(p, c, loteInfo, true);
-  return `<div class="recibo-wrap">${original}
-    <div style="text-align:center;font-size:10px;color:#999;margin:4px 0;letter-spacing:0.05em">✂ — — — — — — — — — — — — — — — — — —</div>
-    ${copia}
+  return `<div class="recibo-wrap">
+    <div class="recibo-half">${original}</div>
+    <div class="recibo-separator">✂ — — — — — — — — — — — — — — — — — —</div>
+    <div class="recibo-half">${copia}</div>
   </div>`;
 }
 
@@ -2603,46 +2604,45 @@ function previewRecibo(id) {
 // ═══════════════════════════════════════════════
 const PRINT_CSS = `
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'DM Sans',sans-serif; font-size:11px; color:#000; background:#fff; padding:16px 20px; }
+  body { font-family:'DM Sans',sans-serif; font-size:12.1px; color:#000; background:#fff; padding:0; }
   table { width:100%; border-collapse:collapse; }
-  .badge { display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500; }
+  .badge { display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500; }
   .badge-green { background:#d8f3dc;color:#2d6a4f; }
   .badge-amber { background:#fdebd0;color:#e07b39; }
   .badge-blue  { background:#dbeafe;color:#1d6fa4; }
   .badge-gray  { background:#f0ece6;color:#7a7060; }
   .badge-red   { background:#fdecea;color:#c0392b; }
-  .paid-row    { background:#f0fff4; }
-  .current-row { background:#fdebd0; font-weight:700; }
-  th { background:#f0ece6; }
   button, .no-print { display:none !important; }
-  img { max-width:140px; }
-  /* ── Recibo styles ── */
-  .recibo-wrap { font-family:'DM Sans',sans-serif; font-size:11px; max-width:100%; margin:0 auto; }
-  .recibo-copy { border:1px solid #bbb; padding:12px 16px; margin-bottom:8px; background:#fff; position:relative; }
+  /* ── Recibo half-page layout ── */
+  .recibo-wrap { font-family:'DM Sans',sans-serif; font-size:12.1px; width:100%; }
+  .recibo-half { height:46vh; display:flex; flex-direction:column; justify-content:center; padding:6px 10px; }
+  .recibo-separator { text-align:center; font-size:10px; color:#999; border-top:1.5px dashed #999; margin:2px 10px; letter-spacing:0.05em; padding-top:3px; }
+  .recibo-copy { border:1px solid #bbb; padding:13px 18px; background:#fff; position:relative; }
   .rc-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:5px; }
-  .rc-empresa { font-weight:700; font-size:12px; }
-  .rc-empresa .ciudad { font-weight:700; font-size:11px; }
-  .rc-empresa .tel { font-weight:700; font-size:10px; }
-  .rc-empresa .email { font-weight:400; font-size:10px; color:#555; }
-  .rc-recibo-lbl { font-weight:700; font-size:18px; letter-spacing:0.05em; color:#222; }
+  .rc-empresa { font-weight:700; font-size:13.2px; }
+  .rc-empresa .ciudad { font-weight:700; font-size:12.1px; }
+  .rc-empresa .tel { font-weight:700; font-size:11px; }
+  .rc-empresa .email { font-weight:400; font-size:11px; color:#555; }
+  .rc-recibo-lbl { font-weight:700; font-size:19.8px; letter-spacing:0.05em; color:#222; }
   .rc-grid-top { display:grid; grid-template-columns:1fr 1fr 1fr; border:1px solid #bbb; margin-bottom:0; }
-  .rc-cell { border:1px solid #bbb; padding:3px 7px; font-size:10px; }
+  .rc-cell { border:1px solid #bbb; padding:3px 8px; font-size:11px; }
   .rc-cell.lbl { font-weight:700; text-align:center; background:#f5f5f5; }
   .rc-cell.val { text-align:center; font-weight:700; }
-  .rc-desc-header { display:grid; grid-template-columns:1fr 55px 85px 85px; border:1px solid #bbb; border-top:none; }
-  .rc-desc-row { display:grid; grid-template-columns:1fr 55px 85px 85px; border-left:1px solid #bbb; border-right:1px solid #bbb; }
-  .rc-detail-row { display:grid; grid-template-columns:1fr 160px; border-left:1px solid #bbb; border-right:1px solid #bbb; border-top:1px solid #eee; }
-  .rc-total-row { display:grid; grid-template-columns:1fr 55px 85px 85px; border:1px solid #bbb; border-top:1px solid #bbb; }
-  .rc-cell-desc { padding:3px 7px; font-size:10px; }
+  .rc-desc-header { display:grid; grid-template-columns:1fr 60px 93px 93px; border:1px solid #bbb; border-top:none; }
+  .rc-desc-row { display:grid; grid-template-columns:1fr 60px 93px 93px; border-left:1px solid #bbb; border-right:1px solid #bbb; }
+  .rc-detail-row { display:grid; grid-template-columns:1fr 176px; border-left:1px solid #bbb; border-right:1px solid #bbb; border-top:1px solid #eee; }
+  .rc-total-row { display:grid; grid-template-columns:1fr 60px 93px 93px; border:1px solid #bbb; border-top:1px solid #bbb; }
+  .rc-cell-desc { padding:3px 8px; font-size:11px; }
   .rc-cell-desc.lbl { font-weight:700; background:#f5f5f5; text-align:center; }
   .rc-cell-desc.right { text-align:right; }
   .rc-cell-desc.center { text-align:center; }
-  .rc-detail-label { padding:2px 7px; font-size:10px; }
-  .rc-detail-val { padding:2px 7px; font-size:10px; text-align:right; border-left:1px solid #eee; }
+  .rc-detail-label { padding:2px 8px; font-size:11px; }
+  .rc-detail-val { padding:2px 8px; font-size:11px; text-align:right; border-left:1px solid #eee; }
   .rc-bold { font-weight:700; }
   @media print {
-    @page { margin:8mm; size:letter; }
+    @page { margin:6mm; size:letter; }
     body { padding:0; }
+    .recibo-half { height:46vh; page-break-inside:avoid; }
     .recibo-copy { page-break-inside:avoid; }
   }
 `;
