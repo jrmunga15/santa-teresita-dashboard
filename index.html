@@ -3343,7 +3343,12 @@ function verPerfilCliente(cid) {
     const reservaMonto = pagosDeLote.find(p=>p.concepto==='Reserva')?.monto||0;
     const interesesTotal = tienePlazo
       ? pagosDeLote.filter(p=>p.concepto&&/^\d+\/\d+$/.test(p.concepto))
-          .reduce((s,p)=>s+calcIntereses((p.saldo||0)+(p.monto||0),tasa),0)
+          .reduce((s,p)=>{
+            const esPrimera = /^1\/\d+$/.test(p.concepto);
+            const sa = esPrimera && loteInfo.financiar ? loteInfo.financiar
+              : Math.round(((p.saldo||0)+(p.monto||0))/(1+tasa/12)*100)/100;
+            return s + calcIntereses(sa, tasa);
+          }, 0)
       : 0;
     const capitalTotal = Math.max(0, totalLote - reservaMonto - interesesTotal);
     const pct = loteInfo.meses>0 ? Math.round((cuotasPagadas/loteInfo.meses)*100) : 0;
@@ -3432,7 +3437,11 @@ function verPerfilCliente(cid) {
         <tbody>
           ${pagosDeLote.map(p=>{
             const esCuota = tienePlazo && p.concepto&&/^\d+\/\d+$/.test(p.concepto);
-            const int_ = esCuota?calcIntereses((p.saldo||0)+(p.monto||0),tasa):0;
+            const esPrimeraCuota = p.concepto&&/^1\/\d+$/.test(p.concepto);
+            const sa = !esCuota ? 0
+              : esPrimeraCuota && loteInfo.financiar ? loteInfo.financiar
+              : Math.round(((p.saldo||0)+(p.monto||0))/(1+tasa/12)*100)/100;
+            const int_ = esCuota ? calcIntereses(sa, tasa) : 0;
             const cap_ = esCuota?Math.round(((p.monto||0)-int_)*100)/100:0;
             return `<tr style="border-top:1px solid var(--border)">
               <td style="padding:5px 8px;font-weight:600;color:var(--accent)">${p.recibo||'—'}</td>
@@ -3709,7 +3718,18 @@ function calcSaldoLote(loteId) {
   pagosDeLote.forEach((p, i) => {
     const tienePlazo = loteInfo.meses > 0;
     const esCuota = tienePlazo && (p.concepto?.includes('/') || p.concepto === 'Abono' || p.concepto === 'Pago Saldo');
-    const saldoAnterior = p.saldo + p.monto;
+    const esPrimeraCuota = p.concepto && /^1\/\d+$/.test(p.concepto);
+
+    let saldoAnterior;
+    if (!esCuota) {
+      saldoAnterior = p.saldo + p.monto;
+    } else if (esPrimeraCuota && loteInfo.financiar) {
+      saldoAnterior = loteInfo.financiar;
+    } else {
+      // Inverse formula: saldoAnt = (nuevoSaldo + monto) / (1 + tasa_mensual)
+      saldoAnterior = Math.round((p.saldo + p.monto) / (1 + tasaMensual) * 100) / 100;
+    }
+
     let intereses = 0, abonoCapital = p.monto;
 
     if (esCuota && saldoAnterior > 0) {
