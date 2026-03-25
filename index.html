@@ -2269,18 +2269,56 @@ function verDetalleLote(loteId) {
 
   // Footer buttons
   const footer = document.getElementById('modal-lote-footer');
+  const estadoOpts = ['Disponible','Vendido a Plazo','Vendido Contado','Pendiente','Reservado'];
+  const estadoSelect = `
+    <select id="lote-estado-sel" class="form-control" style="height:34px;padding:0 10px;font-size:12px;width:160px" onchange="cambiarEstadoLote('${loteId}',this.value)">
+      ${estadoOpts.map(e => `<option value="${e}" ${e===l.estado_plano?'selected':''}>${e}</option>`).join('')}
+    </select>`;
+
   footer.innerHTML = '';
   if (c) {
     footer.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;flex:1">
+        <span style="font-size:11px;color:var(--text-muted)">Estado:</span>
+        ${estadoSelect}
+      </div>
       <button class="btn btn-secondary" onclick="closeModal('modal-detalle-lote')">Cerrar</button>
       <button class="btn btn-primary" onclick="closeModal('modal-detalle-lote');verPerfilCliente(${c.id})">Ver perfil completo →</button>`;
   } else {
     footer.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;flex:1">
+        <span style="font-size:11px;color:var(--text-muted)">Estado:</span>
+        ${estadoSelect}
+      </div>
       <button class="btn btn-secondary" onclick="closeModal('modal-detalle-lote')">Cerrar</button>
       <button class="btn btn-primary" onclick="closeModal('modal-detalle-lote');openModal('modal-cliente')">+ Asignar lote-habiente</button>`;
   }
 
   openModal('modal-detalle-lote');
+}
+
+function cambiarEstadoLote(loteId, nuevoEstado) {
+  const idx = lotes.findIndex(l => l.id === loteId);
+  if (idx < 0) return;
+  lotes[idx].estado_plano = nuevoEstado;
+
+  // Sync to Firestore if lote has a doc
+  if (window._db && lotes[idx]._docId) {
+    const { collection, doc, setDoc } = window._fbFns;
+    setDoc(doc(collection(window._db, 'lotes'), lotes[idx]._docId),
+      { estado_plano: nuevoEstado }, { merge: true });
+  }
+
+  // Update header color in modal
+  const headerBg = nuevoEstado === 'Disponible' ? 'var(--accent)'
+    : nuevoEstado === 'Vendido a Plazo' ? 'var(--blue)'
+    : nuevoEstado === 'Vendido Contado' ? '#555'
+    : nuevoEstado === 'Reservado' ? 'var(--red)'
+    : 'var(--amber)';
+  const header = document.getElementById('modal-lote-header');
+  if (header) header.style.background = headerBg;
+
+  renderLotes();
 }
 
 // ═══════════════════════════════════════════════
