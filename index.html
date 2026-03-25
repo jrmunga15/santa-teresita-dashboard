@@ -2297,6 +2297,29 @@ function verDetalleLote(loteId) {
   openModal('modal-detalle-lote');
 }
 
+function reemplazarFotoDUI(input, field, cid) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = e => {
+    const idx = clientes.findIndex(c => c.id === cid);
+    if (idx < 0) return;
+    clientes[idx][field] = e.target.result;
+
+    // Sync to Firestore
+    if (window._db && clientes[idx]._docId) {
+      const { collection, doc, setDoc } = window._fbFns;
+      const update = {};
+      update[field] = e.target.result;
+      setDoc(doc(collection(window._db, 'clientes'), clientes[idx]._docId), update, { merge: true });
+    }
+
+    // Refresh profile view
+    verPerfilCliente(cid);
+  };
+  reader.readAsDataURL(file);
+}
+
 function cambiarEstadoLote(loteId, nuevoEstado) {
   const idx = lotes.findIndex(l => l.id === loteId);
   if (idx < 0) return;
@@ -3302,11 +3325,39 @@ function verPerfilCliente(cid) {
   }
 
   // ── DUI photos strip ──
-  const fotosHtml = (c.dui_foto_front || c.dui_foto_back) ? `
+  const fotoSlot = (dataUrl, field, label) => {
+    if (dataUrl) {
+      // Check if it looks like a non-image file (PDF/doc stored as base64)
+      const isPDF = dataUrl.startsWith('data:application/pdf') || dataUrl.startsWith('data:application/msword') || dataUrl.startsWith('data:application/vnd');
+      const previewHtml = isPDF
+        ? `<div style="padding:8px;background:var(--surface2);border-radius:4px;font-size:11px;color:var(--accent)">📄 Documento adjunto</div>`
+        : `<img src="${dataUrl}" style="width:100%;border-radius:6px;border:1px solid var(--border)" onerror="this.outerHTML='<div style=\\'padding:8px;background:#fdecea;border-radius:4px;font-size:11px;color:var(--red)\\'>⚠ Foto corrupta o muy pesada — sube una nueva</div>'">`;
+      return `<div style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div style="font-size:10px;color:var(--text-muted)">${label}</div>
+          <label style="font-size:10px;color:var(--accent);cursor:pointer;font-weight:600">
+            🔄 Cambiar
+            <input type="file" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/heic,image/heif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.odt,.ods,.odp" style="display:none" onchange="reemplazarFotoDUI(this,'${field}',${c.id})">
+          </label>
+        </div>
+        ${previewHtml}
+      </div>`;
+    } else {
+      return `<div style="flex:1">
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">${label}</div>
+        <label style="display:flex;align-items:center;justify-content:center;gap:6px;border:1.5px dashed var(--border);border-radius:6px;padding:12px;cursor:pointer;font-size:12px;color:var(--text-muted)">
+          📷 Subir ${label}
+          <input type="file" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/heic,image/heif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.odt,.ods,.odp" style="display:none" onchange="reemplazarFotoDUI(this,'${field}',${c.id})">
+        </label>
+      </div>`;
+    }
+  };
+
+  const fotosHtml = `
     <div style="display:flex;gap:10px;margin-top:10px">
-      ${c.dui_foto_front ? `<div style="flex:1"><div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">DUI — Frente</div><img src="${c.dui_foto_front}" style="width:100%;border-radius:6px;border:1px solid var(--border)"></div>` : ''}
-      ${c.dui_foto_back  ? `<div style="flex:1"><div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">DUI — Reverso</div><img src="${c.dui_foto_back}" style="width:100%;border-radius:6px;border:1px solid var(--border)"></div>` : ''}
-    </div>` : '';
+      ${fotoSlot(c.dui_foto_front, 'dui_foto_front', 'DUI — Frente')}
+      ${fotoSlot(c.dui_foto_back,  'dui_foto_back',  'DUI — Reverso')}
+    </div>`;
 
   // ── DUI verified indicator ──
   const duiVerifHtml = `<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:12px">
