@@ -3515,6 +3515,7 @@ function verPerfilCliente(cid) {
 
 function previewDuiFoto(input, previewId, field, cid) {
   if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
   const reader = new FileReader();
   reader.onload = e => {
     const idx = clientes.findIndex(c => c.id === cid);
@@ -3522,13 +3523,23 @@ function previewDuiFoto(input, previewId, field, cid) {
     const el = document.getElementById(previewId);
     if (el) {
       el.innerHTML = '';
-      const img = document.createElement('img');
-      img.src = e.target.result;
-      img.style.cssText = 'max-width:100%;max-height:100px;border-radius:4px';
-      el.appendChild(img);
+      if (file.type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        img.style.cssText = 'max-width:100%;max-height:100px;border-radius:4px';
+        el.appendChild(img);
+      } else {
+        // Non-image: show filename with icon
+        const ext = file.name.split('.').pop().toLowerCase();
+        const icon = ext === 'pdf' ? '📄' : ext.includes('doc') ? '📝' : ext.includes('xls') ? '📊' : '📎';
+        el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:4px;font-size:12px">
+          <span style="font-size:20px">${icon}</span>
+          <span style="color:var(--accent);font-weight:500">${file.name}</span>
+        </div>`;
+      }
     }
   };
-  reader.readAsDataURL(input.files[0]);
+  reader.readAsDataURL(file);
 }
 
 function editarPerfilCliente(cid) {
@@ -3609,14 +3620,14 @@ function editarPerfilCliente(cid) {
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Foto DUI — Frente</label>
-          <input type="file" accept="image/*" id="edit-dui-front-file" onchange="previewDuiFoto(this,'edit-dui-front-preview','dui_foto_front',${cid})" style="display:none">
+          <input type="file" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/heic,image/heif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.odt,.ods,.odp" id="edit-dui-front-file" onchange="previewDuiFoto(this,'edit-dui-front-preview','dui_foto_front',${cid})" style="display:none">
           <div style="border:2px dashed var(--border);border-radius:8px;padding:10px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-muted)" onclick="document.getElementById('edit-dui-front-file').click()">
             <div id="edit-dui-front-preview">${c.dui_foto_front ? `<img src="${c.dui_foto_front}" style="max-width:100%;max-height:100px;border-radius:4px">` : '📷 Clic para subir frente'}</div>
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">Foto DUI — Reverso</label>
-          <input type="file" accept="image/*" id="edit-dui-back-file" onchange="previewDuiFoto(this,'edit-dui-back-preview','dui_foto_back',${cid})" style="display:none">
+          <input type="file" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/heic,image/heif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.odt,.ods,.odp" id="edit-dui-back-file" onchange="previewDuiFoto(this,'edit-dui-back-preview','dui_foto_back',${cid})" style="display:none">
           <div style="border:2px dashed var(--border);border-radius:8px;padding:10px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-muted)" onclick="document.getElementById('edit-dui-back-file').click()">
             <div id="edit-dui-back-preview">${c.dui_foto_back ? `<img src="${c.dui_foto_back}" style="max-width:100%;max-height:100px;border-radius:4px">` : '📷 Clic para subir reverso'}</div>
           </div>
