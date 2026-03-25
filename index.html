@@ -2423,86 +2423,84 @@ function buildReciboCopy(p, c, loteInfo, esCopia = false) {
 
   const fmtW = v => {
     const n = Number(v);
-    return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return '$ ' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
   const watermark = esCopia ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:10;overflow:hidden;">
     <span style="font-size:80px;font-weight:900;color:rgba(180,0,0,0.09);transform:rotate(-35deg);letter-spacing:0.12em;white-space:nowrap;font-family:Courier,monospace;">COPIA</span>
   </div>` : '';
 
-  const td  = 'style="border:1px solid #000;padding:2px 5px;font-family:Courier,\'Courier New\',monospace;font-size:11px;"';
-  const tdg = 'style="border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,\'Courier New\',monospace;font-size:11px;font-weight:bold;"';
-  const tdr = 'style="border:1px solid #000;padding:2px 5px;font-family:Courier,\'Courier New\',monospace;font-size:11px;text-align:right;"';
-  const tdgr= 'style="border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,\'Courier New\',monospace;font-size:11px;font-weight:bold;text-align:right;"';
+  const F = 'font-family:Courier,"Courier New",monospace;font-size:11px;';
+  const B = F + 'border:1px solid #000;padding:3px 6px;';
+  const BG = B + 'background:#c0c0c0;font-weight:bold;';
+  const R = B + 'text-align:right;';
+  const C = B + 'text-align:center;';
+  const BGC = BG + 'text-align:center;';
 
-  return `<div style="position:relative;font-family:Courier,'Courier New',monospace;font-size:11px;padding:10px 14px;background:#fff;">
+  return `<div style="position:relative;${F}padding:6px 10px;background:#fff;">
     ${watermark}
-    <table style="width:100%;border-collapse:collapse;margin-bottom:4px;">
-      <tr>
-        <td style="width:60%;border:none;padding:0;font-family:Courier,'Courier New',monospace;font-size:11px;vertical-align:top;">
-          <div style="font-size:13px;font-weight:bold;">Muzzolo Inversiones S.A.S. de C.V.</div>
-          <div>Ahuachapán</div>
-          <div>Teléfono/ Wapp: (503) 7969-2069</div>
-          <div>E-mail: muzzoloinversiones@yahoo.com</div>
-        </td>
-        <td style="width:20%;border:1px solid #000;padding:2px 5px;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;vertical-align:middle;">N.º DE RECIBO</td>
-        <td style="width:20%;border:1px solid #000;padding:2px 5px;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;vertical-align:middle;text-align:right;">FECHA</td>
-      </tr>
-      <tr>
-        <td style="border:none;padding:0;font-family:Courier,'Courier New',monospace;font-size:14px;font-weight:bold;padding-top:2px;">RECIBO</td>
-        <td ${td}>${p.recibo || 'xxxxxxxx'}</td>
-        <td ${tdr}>${fmtDate(p.fecha)}</td>
-      </tr>
-    </table>
     <table style="width:100%;border-collapse:collapse;margin-bottom:0;">
       <tr>
-        <td ${tdg} style="width:35%;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">CLIENTE</td>
-        <td ${tdg} style="width:35%;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">ID. DEL CLIENTE</td>
-        <td ${tdg} style="width:30%;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">TÉRMINOS</td>
+        <td rowspan="3" style="${F}width:58%;padding:1px 2px 4px 0;vertical-align:top;border:none;">
+          <div style="${F}font-weight:bold;font-size:12px;">Muzzolo Inversiones S.A.S. de C.V.</div>
+          <div style="${F}">Ahuachapán</div>
+          <div style="${F}">Teléfono/ Wapp: (503) 7969-2069</div>
+          <div style="${F}font-size:10px;">E-mail: muzzoloinversiones@yahoo.com</div>
+          <div style="${F}font-weight:bold;font-size:13px;margin-top:2px;">RECIBO</div>
+        </td>
+        <td style="${BGC}width:21%;">N.º DE RECIBO</td>
+        <td style="${BGC}width:21%;">FECHA</td>
       </tr>
       <tr>
-        <td ${td}>${c.nombre||'—'}</td>
-        <td ${td} style="color:#2d6a4f;font-weight:bold;">${c.codigo||'—'}</td>
-        <td ${td}>${terminos}</td>
+        <td style="${C}">${p.recibo || 'xxxxxxxx'}</td>
+        <td style="${C}">${fmtDate(p.fecha)}</td>
       </tr>
-      <tr>
-        <td ${td}>No. de Lote: <strong>${p.lote}</strong></td>
-        <td ${td}>${tieneplazo ? 'Valor cuota mensual' : ''}</td>
-        <td ${tdr}>${tieneplazo ? fmtW(loteInfo.cuota) : ''}</td>
-      </tr>
-      <tr>
-        <td ${td}>DUI / Pasaporte: <strong>${c.dui||'—'}</strong></td>
-        <td ${td}>${tieneplazo ? 'Fecha de Pago:' : ''}</td>
-        <td ${tdr}>${tieneplazo ? diaPago : ''}</td>
-      </tr>
+      <tr><td style="${B}"></td><td style="${B}"></td></tr>
     </table>
     <table style="width:100%;border-collapse:collapse;margin-top:0;">
       <tr>
-        <td ${tdg} style="width:50%;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">DESCRIPCIÓN</td>
-        <td ${tdg} style="width:10%;text-align:center;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">CANT.</td>
-        <td ${tdg} style="width:20%;text-align:right;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">Detalle</td>
-        <td ${tdg} style="width:20%;text-align:right;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">MONTO</td>
+        <td style="${BG}width:40%;">CLIENTE</td>
+        <td style="${BGC}width:25%;">ID. DEL CLIENTE</td>
+        <td style="${BGC}width:35%;">TÉRMINOS</td>
       </tr>
       <tr>
-        <td ${td}>${descripcion}</td>
-        <td ${td} style="text-align:center;">1</td>
-        <td ${tdr}>${fmtW(p.monto)}</td>
-        <td ${tdr}>${fmtW(p.monto)}</td>
+        <td style="${B}">${c.nombre||'—'}</td>
+        <td style="${B}${';color:#2d6a4f;font-weight:bold;text-align:center;'}">${c.codigo||'—'}</td>
+        <td style="${C}font-weight:bold;">${terminos}</td>
       </tr>
-      <tr><td ${td}>Saldo Anterior</td><td ${td}></td><td ${tdr}>${fmtW(saldoAnterior)}</td><td ${td}></td></tr>
+      <tr>
+        <td style="${B}font-weight:bold;">No. de Lote: <strong>${p.lote}</strong></td>
+        <td style="${B}">${tieneplazo ? 'Valor cuota mensual' : ''}</td>
+        <td style="${R}font-weight:bold;">${tieneplazo ? fmtW(loteInfo.cuota) : ''}</td>
+      </tr>
+      <tr>
+        <td style="${B}font-size:10px;">DUI / Pasaporte: <strong>${c.dui||'—'}</strong></td>
+        <td style="${B}">${tieneplazo ? 'Fecha de Pago:' : ''}</td>
+        <td style="${R}font-weight:bold;">${tieneplazo ? diaPago : ''}</td>
+      </tr>
+      <tr>
+        <td style="${BG}">DESCRIPCIÓN</td>
+        <td style="${BGC}" colspan="2">CANT.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Detalle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MONTO</td>
+      </tr>
+      <tr>
+        <td style="${B}">${descripcion}</td>
+        <td style="${C}" colspan="2">1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${fmtW(p.monto)}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${fmtW(p.monto)}</td>
+      </tr>
+      <tr>
+        <td style="${B}">Saldo Anterior</td>
+        <td colspan="2" style="${R}">${fmtW(saldoAnterior)}</td>
+      </tr>
       ${esCuota ? `
-      <tr><td ${td}>Pago Intereses</td><td ${td}></td><td ${tdr}>${fmtW(intereses)}</td><td ${td}></td></tr>
-      <tr><td ${td}>Abono a Capital</td><td ${td}></td><td ${tdr}>${fmtW(abonoCapital)}</td><td ${td}></td></tr>
+      <tr><td style="${B}">Pago Intereses</td><td colspan="2" style="${R}">${fmtW(intereses)}</td></tr>
+      <tr><td style="${B}">Abono a Capital</td><td colspan="2" style="${R}">${fmtW(abonoCapital)}</td></tr>
       ` : ''}
       <tr>
-        <td ${td} colspan="2" style="border:1px solid #000;padding:2px 5px;font-family:Courier,'Courier New',monospace;font-size:11px;font-style:italic;color:#2d6a4f;font-weight:bold;">Parcelación Santa Teresita 2, "Tu pedacito de Cielo".</td>
-        <td ${tdg} style="text-align:right;border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">TOTAL</td>
-        <td ${tdr}>${fmtW(p.monto)}</td>
+        <td style="${B}font-style:italic;color:#2d6a4f;font-weight:bold;">Parcelación Santa Teresita 2, "Tu pedacito de Cielo".</td>
+        <td style="${BGC}" colspan="2">TOTAL&nbsp;&nbsp;&nbsp;&nbsp;${fmtW(p.monto)}</td>
       </tr>
       <tr>
-        <td ${tdg} colspan="2" style="border:1px solid #000;padding:2px 5px;background:#c0c0c0;font-family:Courier,'Courier New',monospace;font-size:11px;font-weight:bold;">Nuevo Saldo</td>
-        <td ${tdr}>${fmtW(esCuota ? nuevoSaldo : p.saldo)}</td>
-        <td ${td}></td>
+        <td style="${BG}">Nuevo Saldo</td>
+        <td colspan="2" style="${R}font-weight:bold;">${fmtW(esCuota ? nuevoSaldo : p.saldo)}</td>
       </tr>
     </table>
   </div>`;
