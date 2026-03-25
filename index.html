@@ -2899,7 +2899,8 @@ function registrarPago() {
 
   const renum = getNextReciboNum();
   const date = new Date(fecha);
-  const mes = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
+  const mesRaw = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
+  const mes = mesRaw.charAt(0).toUpperCase() + mesRaw.slice(1);
 
   const nuevo = {
     id: nextId++,
@@ -4101,7 +4102,12 @@ window.initFirestoreListeners = async function() {
   });
 
   onSnapshot(collection(db, 'pagos'), snap => {
-    pagos = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+    pagos = snap.docs.map(d => {
+      const p = { ...d.data(), _docId: d.id };
+      // Normalize mes capitalization: "mar 2026" → "Mar 2026"
+      if (p.mes) p.mes = p.mes.charAt(0).toUpperCase() + p.mes.slice(1);
+      return p;
+    });
     renderDashboard();
   });
 
@@ -4180,7 +4186,8 @@ window.registrarPago = async function() {
 
   const renum = getNextReciboNum();
   const date  = new Date(fecha);
-  const mes   = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
+  const mesRaw2 = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
+  const mes   = mesRaw2.charAt(0).toUpperCase() + mesRaw2.slice(1);
 
   const nuevo = {
     id: nextId++,
