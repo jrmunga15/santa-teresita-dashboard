@@ -2423,7 +2423,6 @@ function buildReciboCopy(p, c, loteInfo, esCopia = false) {
 
   const fmtW = v => {
     const n = Number(v);
-    if (n === 0) return '$ -';
     return '$ ' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
@@ -2431,110 +2430,81 @@ function buildReciboCopy(p, c, loteInfo, esCopia = false) {
     <span style="font-size:80px;font-weight:900;color:rgba(180,0,0,0.09);transform:rotate(-35deg);letter-spacing:0.12em;white-space:nowrap;font-family:Courier,monospace;">COPIA</span>
   </div>` : '';
 
-  // Style shortcuts
-  const F  = 'font-family:Courier,"Courier New",monospace;font-size:11px;';
-  const B  = `${F}border:1px solid #000;padding:3px 8px;vertical-align:middle;`;
-  const BG = `${B}background:#c0c0c0;font-weight:bold;`;
-  const R  = `${B}text-align:right;`;
-  const C  = `${B}text-align:center;`;
-  const BGC= `${BG}text-align:center;`;
-  const BGR= `${BG}text-align:right;`;
+  const F = 'font-family:Courier,"Courier New",monospace;font-size:11px;';
+  const B = F + 'border:1px solid #000;padding:3px 6px;';
+  const BG = B + 'background:#c0c0c0;font-weight:bold;';
+  const R = B + 'text-align:right;';
+  const C = B + 'text-align:center;';
+  const BGC = BG + 'text-align:center;';
 
-  return `<div style="position:relative;${F}border:1px solid #000;background:#fff;">
+  return `<div style="position:relative;${F}padding:6px 10px;background:#fff;">
     ${watermark}
-    <table style="width:100%;border-collapse:collapse;">
-      <!-- Row 1: empresa name + RECIBO label -->
+    <table style="width:100%;border-collapse:collapse;margin-bottom:0;">
       <tr>
-        <td colspan="3" style="${F}border-right:1px solid #000;border-bottom:none;padding:3px 8px;font-weight:bold;font-size:12px;width:60%;">Muzzolo Inversiones S.A.S. de C.V.</td>
-        <td colspan="2" style="${BGR}border-left:none;border-bottom:none;padding:3px 8px;width:40%;font-size:14px;letter-spacing:0.05em;">RECIBO</td>
+        <td rowspan="3" style="${F}width:58%;padding:1px 2px 4px 0;vertical-align:top;border:none;">
+          <div style="${F}font-weight:bold;font-size:12px;">Muzzolo Inversiones S.A.S. de C.V.</div>
+          <div style="${F}">Ahuachapán</div>
+          <div style="${F}">Teléfono/ Wapp: (503) 7969-2069</div>
+          <div style="${F}font-size:10px;">E-mail: muzzoloinversiones@yahoo.com</div>
+          <div style="${F}font-weight:bold;font-size:13px;margin-top:2px;">RECIBO</div>
+        </td>
+        <td style="${BGC}width:21%;">N.º DE RECIBO</td>
+        <td style="${BGC}width:21%;">FECHA</td>
       </tr>
-      <!-- Row 2: Ahuachapan + N.º DE RECIBO / FECHA headers -->
       <tr>
-        <td colspan="3" style="${F}border-right:1px solid #000;border-top:none;border-bottom:none;padding:1px 8px;">Ahuachapán</td>
-        <td style="${BGC}border-top:none;width:20%;">N.º DE RECIBO</td>
-        <td style="${BGC}border-top:none;width:20%;">FECHA</td>
+        <td style="${C}">${p.recibo || 'xxxxxxxx'}</td>
+        <td style="${C}">${fmtDate(p.fecha)}</td>
       </tr>
-      <!-- Row 3: Telefono + recibo number / fecha values -->
+      <tr><td style="${B}"></td><td style="${B}"></td></tr>
+    </table>
+    <table style="width:100%;border-collapse:collapse;margin-top:0;">
       <tr>
-        <td colspan="3" style="${F}font-weight:bold;border-right:1px solid #000;border-top:none;border-bottom:none;padding:1px 8px;">Teléfono/ Wapp: (503) 7969-2069</td>
-        <td style="${C}border-top:none;">${p.recibo || 'xxxxxxxx'}</td>
-        <td style="${C}border-top:none;">${fmtDate(p.fecha)}</td>
+        <td style="${BG}width:40%;">CLIENTE</td>
+        <td style="${BGC}width:25%;">ID. DEL CLIENTE</td>
+        <td style="${BGC}width:35%;">TÉRMINOS</td>
       </tr>
-      <!-- Row 4: Email -->
       <tr>
-        <td colspan="3" style="${F}border-right:1px solid #000;border-top:none;padding:1px 8px;font-size:10px;">E-mail: muzzoloinversiones@yahoo.com</td>
-        <td style="${B}border-top:none;"></td>
-        <td style="${B}border-top:none;"></td>
-      </tr>
-      <!-- Row 5: CLIENTE / ID. DEL CLIENTE / TÉRMINOS headers -->
-      <tr>
-        <td colspan="3" style="${BG}">CLIENTE</td>
-        <td style="${BGC}">ID. DEL CLIENTE</td>
-        <td style="${BGC}">TÉRMINOS</td>
-      </tr>
-      <!-- Row 6: client name / codigo / terminos -->
-      <tr>
-        <td colspan="3" style="${B}">${c.nombre||'—'}</td>
-        <td style="${C}color:#2d6a4f;font-weight:bold;">${c.codigo||'—'}</td>
+        <td style="${B}">${c.nombre||'—'}</td>
+        <td style="${B}${';color:#2d6a4f;font-weight:bold;text-align:center;'}">${c.codigo||'—'}</td>
         <td style="${C}font-weight:bold;">${terminos}</td>
       </tr>
-      <!-- Row 7: No. Lote / Valor cuota -->
       <tr>
-        <td style="${B}font-weight:bold;width:25%;">No. de Lote:</td>
-        <td style="${B}font-weight:bold;width:20%;">${p.lote}</td>
-        <td style="${B}width:15%;border-right:1px solid #000;"></td>
+        <td style="${B}font-weight:bold;">No. de Lote: <strong>${p.lote}</strong></td>
         <td style="${B}">${tieneplazo ? 'Valor cuota mensual' : ''}</td>
         <td style="${R}font-weight:bold;">${tieneplazo ? fmtW(loteInfo.cuota) : ''}</td>
       </tr>
-      <!-- Row 8: DUI / Fecha de pago -->
       <tr>
-        <td colspan="3" style="${B}font-size:10px;">DUI / Pasaporte: <strong>${c.dui||'—'}</strong></td>
+        <td style="${B}font-size:10px;">DUI / Pasaporte: <strong>${c.dui||'—'}</strong></td>
         <td style="${B}">${tieneplazo ? 'Fecha de Pago:' : ''}</td>
         <td style="${R}font-weight:bold;">${tieneplazo ? diaPago : ''}</td>
       </tr>
-      <!-- Row 9: DESCRIPCIÓN / CANT. / Detalle / MONTO headers -->
       <tr>
-        <td colspan="3" style="${BG}">DESCRIPCIÓN</td>
-        <td style="${BGC}">CANT.</td>
-        <td style="${BGC}">Detalle&nbsp;&nbsp;&nbsp;&nbsp;MONTO</td>
+        <td style="${BG}">DESCRIPCIÓN</td>
+        <td style="${BGC}" colspan="2">CANT.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Detalle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MONTO</td>
       </tr>
-      <!-- Row 10: descripcion / 1 / monto -->
       <tr>
-        <td colspan="3" style="${B}">${descripcion}</td>
-        <td style="${C}">1</td>
-        <td style="${R}">${fmtW(p.monto)}&nbsp;&nbsp;&nbsp;&nbsp;${fmtW(p.monto)}</td>
+        <td style="${B}">${descripcion}</td>
+        <td style="${C}" colspan="2">1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${fmtW(p.monto)}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${fmtW(p.monto)}</td>
       </tr>
-      <!-- Saldo Anterior -->
       <tr>
-        <td colspan="3" style="${B}">Saldo Anterior</td>
+        <td style="${B}">Saldo Anterior</td>
         <td colspan="2" style="${R}">${fmtW(saldoAnterior)}</td>
       </tr>
-      <!-- Intereses y Capital (solo si es cuota) -->
+      ${esCuota ? `
+      <tr><td style="${B}">Pago Intereses</td><td colspan="2" style="${R}">${fmtW(intereses)}</td></tr>
+      <tr><td style="${B}">Abono a Capital</td><td colspan="2" style="${R}">${fmtW(abonoCapital)}</td></tr>
+      ` : ''}
       <tr>
-        <td colspan="3" style="${B}">Pago Intereses${esCuota ? '' : ' '}</td>
-        <td colspan="2" style="${R}">${esCuota ? fmtW(intereses) : fmtW(0)}</td>
+        <td style="${B}font-style:italic;color:#2d6a4f;font-weight:bold;">Parcelación Santa Teresita 2, "Tu pedacito de Cielo".</td>
+        <td style="${BGC}" colspan="2">TOTAL&nbsp;&nbsp;&nbsp;&nbsp;${fmtW(p.monto)}</td>
       </tr>
       <tr>
-        <td colspan="3" style="${B}">Abono a Capital</td>
-        <td colspan="2" style="${R}">${esCuota ? fmtW(abonoCapital) : fmtW(p.monto)}</td>
-      </tr>
-      <!-- Espacios vacíos igual que el Excel -->
-      <tr><td colspan="5" style="${B}height:14px;"></td></tr>
-      <tr><td colspan="5" style="${B}height:14px;"></td></tr>
-      <!-- Nuevo Saldo / Parcelación / TOTAL -->
-      <tr>
-        <td colspan="3" style="${B}font-weight:bold;">Nuevo Saldo</td>
+        <td style="${BG}">Nuevo Saldo</td>
         <td colspan="2" style="${R}font-weight:bold;">${fmtW(esCuota ? nuevoSaldo : p.saldo)}</td>
-      </tr>
-      <tr>
-        <td colspan="3" style="${B}font-style:italic;font-weight:bold;color:#2d6a4f;">Parcelación Santa Teresita 2, "Tu pedacito de Cielo".</td>
-        <td style="${BGC}font-size:12px;">TOTAL</td>
-        <td style="${BGR}font-size:12px;">${fmtW(p.monto)}</td>
       </tr>
     </table>
   </div>`;
 }
-
 
 function buildReciboHTML(p) {
   const c = getCliente(p.cliente_id);
