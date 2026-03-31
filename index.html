@@ -1618,7 +1618,7 @@ function getNextReciboNum() {
 // ═══════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════
-function getCliente(id) { return clientes.find(c => c.id === id) || {}; }
+function getCliente(id) { return clientes.find(c => c.id == id) || {}; }
 function getLote(id) { return lotes.find(l => l.id === id) || {}; }
 function fmt(n) { return '$' + (parseFloat(n)||0).toLocaleString('es-SV', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmtDate(d) {
@@ -4199,6 +4199,11 @@ window.initFirestoreListeners = async function() {
       const p = { ...d.data(), _docId: d.id };
       // Normalize mes capitalization: "mar 2026" → "Mar 2026"
       if (p.mes) p.mes = p.mes.charAt(0).toUpperCase() + p.mes.slice(1);
+      // Normalize cliente_id to integer (Firestore may return it as string)
+      if (p.cliente_id !== undefined) p.cliente_id = parseInt(p.cliente_id);
+      // Normalize monto and saldo to numbers
+      if (p.monto !== undefined) p.monto = parseFloat(p.monto) || 0;
+      if (p.saldo !== undefined) p.saldo = parseFloat(p.saldo) || 0;
       return p;
     });
     renderDashboard();
