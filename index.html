@@ -2533,9 +2533,10 @@ function buildReciboHTML(p) {
 }
 
 function verRecibo(id) {
-  const p = pagos.find(x => x.id === id);
+  let p = pagos.find(x => x.id === id);
+  if (!p) p = pagos.find(x => x.recibo === String(id));
   if (!p) return;
-  _reciboActivoId = id;
+  _reciboActivoId = p.id;
   document.getElementById('ver-recibo-body').innerHTML = buildReciboHTML(p);
   openModal('modal-ver-recibo');
 }
@@ -4224,6 +4225,11 @@ window.initFirestoreListeners = async function() {
       // Normalize monto and saldo to numbers
       if (p.monto !== undefined) p.monto = parseFloat(p.monto) || 0;
       if (p.saldo !== undefined) p.saldo = parseFloat(p.saldo) || 0;
+      // Assign stable numeric id based on recibo number, fallback to hash of docId
+      if (!p.id) {
+        const renum = parseInt(p.recibo);
+        p.id = !isNaN(renum) ? renum : Math.abs(d.id.split('').reduce((a,c) => (a<<5)-a+c.charCodeAt(0)|0, 0));
+      }
       return p;
     });
     renderDashboard();
@@ -4302,22 +4308,43 @@ window.registrarPago = async function() {
     concepto = `${cuotasPagadas + 1}/${totalCuotas}`;
   }
 
+  // Calculate renum BEFORE closing modal, using current pagos state
   const renum = getNextReciboNum();
   const date  = new Date(fecha);
   const mesRaw2 = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
   const mes   = mesRaw2.charAt(0).toUpperCase() + mesRaw2.slice(1);
 
   const nuevo = {
-    id: nextId++,
     recibo: String(renum),
     fecha, cliente_id: cid, lote: loteId,
     concepto, monto, saldo, forma, mes, notas: notas || ''
   };
 
-  await addDoc(collection(db, 'pagos'), nuevo);
   closeModal('modal-pago');
-  alert(`✅ Pago registrado con Recibo No. ${renum}`);
-  setTimeout(() => verRecibo(nuevo.id), 200);
+
+  try {
+    await addDoc(collection(db, 'pagos'), nuevo);
+    alert(`✅ Pago registrado con Recibo No. ${renum}`);
+
+    // Wait for onSnapshot to update pagos array, then find by recibo number
+    let intentos = 0;
+    const buscarRecibo = setInterval(() => {
+      intentos++;
+      const p = pagos.find(x => x.recibo === String(renum) && x.cliente_id == cid);
+      if (p) {
+        clearInterval(buscarRecibo);
+        verRecibo(p.id);
+      } else if (intentos > 20) {
+        clearInterval(buscarRecibo);
+        // Fallback: find any pago with this recibo number
+        const fallback = pagos.find(x => x.recibo === String(renum));
+        if (fallback) verRecibo(fallback.id);
+      }
+    }, 150);
+  } catch(err) {
+    console.error('Error guardando pago:', err);
+    alert('Error al guardar el pago. Intenta de nuevo.');
+  }
 };
 
 // ── Override guardarCliente to save to Firestore ──
