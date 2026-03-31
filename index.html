@@ -1998,7 +1998,7 @@ function renderProximosPagos() {
       <td style="font-weight:600">${fmt(loteInfo.cuota)}</td>
       <td>${fechaStr}</td>
       <td>${estadoBadge}</td>
-      <td><button class="btn btn-secondary btn-sm" onclick="verPerfilCliente(${c.id})">Ver perfil</button></td>
+      <td><button class="btn btn-primary btn-sm" onclick="registrarPagoDesde(${c.id},'${loteId}')">+ Registrar Pago</button></td>
     </tr>`;
   }).join('');
 }
@@ -2008,6 +2008,23 @@ function renderProximosPagos() {
 // ═══════════════════════════════════════════════
 let clienteFilter = '';
 function filterClientes(v) { clienteFilter = v.toLowerCase(); renderClientes(); }
+
+function registrarPagoDesde(cid, loteId) {
+  // Open modal pago and pre-fill cliente + lote
+  openModal('modal-pago');
+  // Set cliente
+  const c = getCliente(cid);
+  document.getElementById('pago-cliente-search').value = c.nombre || '';
+  document.getElementById('pago-cliente').value = cid;
+  // Populate lotes dropdown for this client then select the lote
+  onClienteChange();
+  // Wait a tick for dropdown to populate then select lote
+  setTimeout(() => {
+    const sel = document.getElementById('pago-lote');
+    sel.value = loteId;
+    onLoteChange();
+  }, 50);
+}
 
 // ── KYC helpers ──
 function clasificacionBadge(c) {
