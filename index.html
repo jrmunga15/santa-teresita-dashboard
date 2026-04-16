@@ -2345,11 +2345,14 @@ function cambiarEstadoLote(loteId, nuevoEstado) {
   if (idx < 0) return;
   lotes[idx].estado_plano = nuevoEstado;
 
-  // Sync to Firestore if lote has a doc
-  if (window._db && lotes[idx]._docId) {
+  // Sync to Firestore — create doc if it doesn't exist yet, update if it does
+  if (window._db) {
     const { collection, doc, setDoc } = window._fbFns;
-    setDoc(doc(collection(window._db, 'lotes'), lotes[idx]._docId),
-      { estado_plano: nuevoEstado }, { merge: true });
+    // Use loteId as the document ID so it's always findable
+    const loteRef = doc(collection(window._db, 'lotes'), loteId);
+    setDoc(loteRef, { id: loteId, estado_plano: nuevoEstado }, { merge: true })
+      .then(() => { lotes[idx]._docId = loteId; })
+      .catch(err => console.error('Error guardando estado lote:', err));
   }
 
   // Update header color in modal
@@ -4241,12 +4244,20 @@ window.initFirestoreListeners = async function() {
     // Firestore ONLY provides: propietario_id, estado_plano, _docId (ownership data)
     lotes = catalogoLotes.map(cl => {
       const df = datosFinancieros[cl.id] || {};
-      const fl = firestoreLotes.find(l => l.id === cl.id);
+      // Match by lote id field OR by document id (for lotes saved with loteId as docId)
+      const fl = firestoreLotes.find(l => l.id === cl.id || l._docId === cl.id);
       const base = { ...cl, ...df };
       if (fl) {
-        base._docId        = fl._docId;
+        base._docId         = fl._docId;
         base.propietario_id = fl.propietario_id ?? df.propietario_id ?? null;
-        base.estado_plano  = fl.estado_plano  ?? cl.estado_plano;
+        base.estado_plano   = fl.estado_plano  ?? cl.estado_plano;
+        // Also restore financial data if saved in Firestore
+        if (fl.valor)    base.valor    = fl.valor;
+        if (fl.reserva)  base.reserva  = fl.reserva;
+        if (fl.financiar)base.financiar= fl.financiar;
+        if (fl.tasa)     base.tasa     = fl.tasa;
+        if (fl.meses !== undefined) base.meses = fl.meses;
+        if (fl.cuota)    base.cuota    = fl.cuota;
       }
       return base;
     });
