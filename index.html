@@ -4377,32 +4377,52 @@ window.guardarCliente = async function() {
 
   if (loteId) {
     const l        = getLote(loteId);
-    const reserva  = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? 900 : 500);
-    const valor    = l.valor || 18500;
+    const valor    = parseFloat(document.getElementById('cli-precio').value)  || calcPrecioLote(l.area_m2, tipo);
+    const reserva  = tipo === 'contado' ? 0 : (parseFloat(document.getElementById('cli-reserva').value) || RESERVA_PEQUEÑA);
+    const tasaPct  = parseFloat(document.getElementById('cli-tasa').value)    || TASA_ANUAL_DEFAULT;
+    const tasa     = tasaPct / 100;
     const financiar = tipo === 'contado' ? 0 : valor - reserva;
-    const tasa     = 0.105;
-    const tasaMensual = tasa / 12;
+    const tm       = tasa / 12;
     const meses    = tipo === 'contado' ? 0 : 180;
     const cuota    = tipo === 'contado' ? 0 :
-      Math.round(financiar * tasaMensual / (1 - Math.pow(1 + tasaMensual, -180)) / 5) * 5;
+      Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
+    const estadoPlano = tipo === 'contado' ? 'Vendido Contado' : 'Vendido a Plazo';
 
+    // Update local lotes array immediately
     const loteIdx = lotes.findIndex(l => l.id === loteId);
     if (loteIdx >= 0) {
-      // Only save ownership to Firestore — financial data lives in code
-      const loteOwnership = {
-        id: loteId,
-        propietario_id: newId,
-        estado_plano: tipo === 'contado' ? 'Vendido Contado' : 'Vendido a Plazo'
-      };
-      const { collection: col, doc, setDoc } = window._fbFns;
-      const loteRef = doc(col(db, 'lotes'), loteId);
-      await setDoc(loteRef, loteOwnership, { merge: true });
+      lotes[loteIdx].propietario_id = newId;
+      lotes[loteIdx].valor          = valor;
+      lotes[loteIdx].reserva        = reserva;
+      lotes[loteIdx].financiar      = financiar;
+      lotes[loteIdx].tasa           = tasa;
+      lotes[loteIdx].meses          = meses;
+      lotes[loteIdx].cuota          = cuota;
+      lotes[loteIdx].estado_plano   = estadoPlano;
     }
+
+    // Save to Firestore
+    const loteOwnership = {
+      id: loteId,
+      propietario_id: newId,
+      estado_plano: estadoPlano,
+      valor, reserva, financiar, tasa, meses, cuota
+    };
+    const { collection: col, doc, setDoc } = window._fbFns;
+    const loteRef = doc(col(db, 'lotes'), loteId);
+    await setDoc(loteRef, loteOwnership, { merge: true });
   }
 
+  // Add client to local array and Firestore
+  clientes.push(nuevoCliente);
   await addDoc(collection(db, 'clientes'), nuevoCliente);
+
   closeModal('modal-cliente');
-  alert(`✅ Lote-habiente registrado: ${codigo} — ${nombre}`);
+  renderClientes();
+  renderLotes();
+  renderDashboard();
+  document.getElementById('stat-clientes').textContent = clientes.length;
+  alert(`✅ Lote-habiente registrado: ${codigo} — ${nombre}${loteId ? '\nLote ' + loteId + ' asignado.' : ''}`);
 };
 
 // ── Override guardarEdicionPerfil to save to Firestore ──
