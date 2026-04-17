@@ -677,7 +677,32 @@
 
     <!-- PAGE: DASHBOARD -->
     <div class="page active" id="page-dashboard">
-      <!-- Row 1: Lotes -->
+      <!-- Row 1: Finanzas y Clientes (ahora primero) -->
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Finanzas y Clientes</div>
+      <div class="stat-grid" style="margin-bottom:20px">
+        <div class="stat-card green">
+          <div class="label">Total Recibido</div>
+          <div class="value" id="stat-total">$0</div>
+          <div class="sub" id="stat-mes-actual">este año</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="label">Recibido Este Mes</div>
+          <div class="value" id="stat-mes">$0</div>
+          <div class="sub">mes actual</div>
+        </div>
+        <div class="stat-card red">
+          <div class="label">Saldo Pendiente</div>
+          <div class="value" id="stat-saldo-total">$0</div>
+          <div class="sub">por cobrar</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="label">Lote-habientes</div>
+          <div class="value" id="stat-clientes">0</div>
+          <div class="sub"><span id="stat-al-dia">0</span> al día · <span id="stat-mora" style="color:var(--red)">0</span> en mora</div>
+        </div>
+      </div>
+
+      <!-- Row 2: Lotes -->
       <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Lotes</div>
       <div class="stat-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
         <div class="stat-card green">
@@ -707,30 +732,7 @@
         </div>
       </div>
 
-      <!-- Row 2: Finanzas y Clientes -->
-      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Finanzas y Clientes</div>
-      <div class="stat-grid" style="margin-bottom:24px">
-        <div class="stat-card green">
-          <div class="label">Total Recibido</div>
-          <div class="value" id="stat-total">$0</div>
-          <div class="sub" id="stat-mes-actual">este año</div>
-        </div>
-        <div class="stat-card blue">
-          <div class="label">Recibido Este Mes</div>
-          <div class="value" id="stat-mes">$0</div>
-          <div class="sub">mes actual</div>
-        </div>
-        <div class="stat-card red">
-          <div class="label">Saldo Pendiente</div>
-          <div class="value" id="stat-saldo-total">$0</div>
-          <div class="sub">por cobrar</div>
-        </div>
-        <div class="stat-card amber">
-          <div class="label">Lote-habientes</div>
-          <div class="value" id="stat-clientes">0</div>
-          <div class="sub"><span id="stat-al-dia">0</span> al día · <span id="stat-mora" style="color:var(--red)">0</span> en mora</div>
-        </div>
-      </div>
+
 
       <div class="card">
         <div class="card-header">
@@ -2150,7 +2152,7 @@ function renderClientes(list) {
     if (docsPend.length) alertas.push(`<span class="badge badge-amber" title="Pendiente: ${docsPend.join(', ')}">📋 Docs</span>`);
     return `<tr style="cursor:pointer" onclick="verPerfilCliente(${c.id})">
       <td><span style="font-weight:700;color:var(--accent);font-size:12px;letter-spacing:0.04em">${c.codigo}</span></td>
-      <td style="font-weight:500;color:var(--accent);text-decoration:underline;text-underline-offset:3px">${c.nombre}</td>
+      <td style="font-weight:500">${c.nombre}</td>
       <td style="font-size:12px;color:var(--text-muted)">${c.dui||'—'}</td>
       <td>${misLotes.map(l=>'<span class="badge badge-gray">'+l.id+'</span>').join(' ')}</td>
       <td>${c.tel||'<span style="color:var(--text-light)">—</span>'}</td>
@@ -2257,9 +2259,9 @@ function renderLotes() {
       <td style="font-weight:500">${l.area_m2.toFixed(2)} m²</td>
       <td style="color:var(--text-muted)">${l.area_v2.toFixed(2)} v²</td>
       <td>${c ? c.nombre : '<span style="color:var(--text-light)">—</span>'}</td>
-      <td>${l.valor > 0 ? fmt(l.valor) : '—'}</td>
-      <td>${l.cuota > 0 ? fmt(l.cuota)+'/mes' : l.valor > 0 ? '<span style="color:var(--text-muted)">Contado</span>' : '—'}</td>
-      <td>${l.meses > 0 ? l.meses+' meses' : '—'}</td>
+      <td>${c && l.valor > 0 ? fmt(l.valor) : '—'}</td>
+      <td>${c && l.cuota > 0 ? fmt(l.cuota)+'/mes' : c && l.meses === 0 && l.valor > 0 ? '<span style="color:var(--text-muted)">Contado</span>' : '—'}</td>
+      <td>${c && l.meses > 0 ? l.meses+' meses' : '—'}</td>
     </tr>`;
   }).join('');
 }
@@ -4337,24 +4339,24 @@ window.initFirestoreListeners = async function() {
 
   onSnapshot(collection(db, 'lotes'), snap => {
     const firestoreLotes = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
-    // Merge: catalogoLotes (geometry) + datosFinancieros (financial = source of truth)
-    // Firestore ONLY provides: propietario_id, estado_plano, _docId (ownership data)
     lotes = catalogoLotes.map(cl => {
       const df = datosFinancieros[cl.id] || {};
-      // Match by lote id field OR by document id (for lotes saved with loteId as docId)
       const fl = firestoreLotes.find(l => l.id === cl.id || l._docId === cl.id);
       const base = { ...cl, ...df };
       if (fl) {
         base._docId         = fl._docId;
         base.propietario_id = fl.propietario_id ?? df.propietario_id ?? null;
         base.estado_plano   = fl.estado_plano  ?? cl.estado_plano;
-        // Also restore financial data if saved in Firestore
-        if (fl.valor)    base.valor    = fl.valor;
-        if (fl.reserva)  base.reserva  = fl.reserva;
-        if (fl.financiar)base.financiar= fl.financiar;
-        if (fl.tasa)     base.tasa     = fl.tasa;
-        if (fl.meses !== undefined) base.meses = fl.meses;
-        if (fl.cuota)    base.cuota    = fl.cuota;
+        // Only restore financial data from Firestore if this lote is NOT in datosFinancieros
+        // (i.e. it's a newly registered lote). For existing lotes, datosFinancieros is source of truth.
+        if (!datosFinancieros[cl.id]) {
+          if (fl.valor)                base.valor    = fl.valor;
+          if (fl.reserva !== undefined)base.reserva  = fl.reserva;
+          if (fl.financiar !== undefined) base.financiar = fl.financiar;
+          if (fl.tasa)                 base.tasa     = fl.tasa;
+          if (fl.meses !== undefined)  base.meses    = fl.meses;
+          if (fl.cuota !== undefined)  base.cuota    = fl.cuota;
+        }
       }
       return base;
     });
