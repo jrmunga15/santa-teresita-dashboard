@@ -1927,7 +1927,7 @@ function initProximosPagos() {
 
     // Skip if fully paid (saldo = 0) or all cuotas done
     const lastPago = pagosDeLote[pagosDeLote.length - 1];
-    const saldoActual = lastPago ? (lastPago.saldo || 0) : (loteInfo.financiar || 0);
+    const saldoActual = lastPago ? (lastPago.saldo || 0) : (loteInfo.valor || 0);
     if (saldoActual <= 0 || cuotasPagadas >= loteInfo.meses) return;
 
     // Get payment day from first payment
@@ -2198,7 +2198,7 @@ function verDetalleLote(loteId) {
   const c = l.propietario_id ? getCliente(l.propietario_id) : null;
   const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
   const lastPago = pagosDeLote[pagosDeLote.length - 1];
-  const saldo = lastPago ? (lastPago.saldo || 0) : (l.financiar || 0);
+  const saldo = lastPago ? (lastPago.saldo || 0) : (l.valor || 0);
   const cuotasPagadas = pagosDeLote.filter(p => p.concepto && /^\d+\/\d+$/.test(p.concepto)).length;
   const totalPagado = pagosDeLote.reduce((s,p) => s+(p.monto||0), 0);
   const poly = loteId.split('-')[0];
@@ -2888,7 +2888,7 @@ function onLoteChange() {
   // Get current saldo from last payment on this lot
   const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
   const ultimoPago = pagosDeLote[pagosDeLote.length - 1];
-  const saldoActual = ultimoPago ? ultimoPago.saldo : (loteInfo.financiar || 0);
+  const saldoActual = ultimoPago ? ultimoPago.saldo : (loteInfo.valor || 0);
 
   // Auto-suggest next cuota in the concepto select
   const conceptoSel = document.getElementById('pago-concepto');
@@ -2920,7 +2920,7 @@ function onConceptoChange() {
   const concepto = document.getElementById('pago-concepto').value;
   const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
   const ultimoPago = pagosDeLote[pagosDeLote.length - 1];
-  const saldoActual = ultimoPago ? ultimoPago.saldo : (loteInfo.financiar || 0);
+  const saldoActual = ultimoPago ? ultimoPago.saldo : (loteInfo.valor || 0);
   autoFillMontoSaldo(concepto, loteInfo, saldoActual);
 }
 
@@ -3031,7 +3031,8 @@ function onCliLoteChange() {
   if (!tasaEl.value)    tasaEl.value    = TASA_ANUAL_DEFAULT;
 
   const valor    = parseFloat(precioEl.value)  || calcPrecioLote(l.area_m2, tipo);
-  const reserva  = tipo === 'contado' ? 0 : (parseFloat(reservaEl.value) || RESERVA_PEQUEÑA);
+  const reservaRaw = reservaEl.value;
+  const reserva  = tipo === 'contado' ? 0 : (reservaRaw === '' ? RESERVA_PEQUEÑA : (parseFloat(reservaRaw) || 0));
   const tasaPct  = parseFloat(tasaEl.value)    || TASA_ANUAL_DEFAULT;
   const tasa     = tasaPct / 100;
   const financiar = tipo === 'contado' ? 0 : valor - reserva;
@@ -3321,7 +3322,7 @@ function verPerfilCliente(cid) {
   const misLotes = lotes.filter(l => l.propietario_id === cid);
   const totalSaldo = misLotes.reduce((s,l) => {
     const last = [...pagos].filter(p=>p.lote===l.id).sort((a,b)=>b.id-a.id)[0];
-    return s + (last ? last.saldo||0 : 0);
+    return s + (last ? last.saldo||0 : (l.valor||0));
   }, 0);
   const totalPagado = pagos.filter(p=>p.cliente_id===cid).reduce((s,p)=>s+(p.monto||0),0);
 
@@ -3444,7 +3445,7 @@ function verPerfilCliente(cid) {
     const tienePlazo = loteInfo.meses > 0;
     const pagosDeLote = pagos.filter(p=>p.lote===loteId).sort((a,b)=>a.fecha.localeCompare(b.fecha));
     const last = pagosDeLote[pagosDeLote.length-1];
-    const saldo = last ? last.saldo||0 : loteInfo.financiar||0;
+    const saldo = last ? last.saldo||0 : (loteInfo.valor||0);
     const cuotasPagadas = pagosDeLote.filter(p=>p.concepto&&/^\d+\/\d+$/.test(p.concepto)).length;
     const totalLote = pagosDeLote.reduce((s,p)=>s+(p.monto||0),0);
     const reservaMonto = pagosDeLote.find(p=>p.concepto==='Reserva')?.monto||0;
@@ -4051,13 +4052,34 @@ function getFechaCuota(loteId, numCuota) {
 
 function getAmortTable(loteId) {
   const key = AMORT_MAP[loteId];
-  return key ? AMORT[key] : null;
+  if (key) return AMORT[key];
+
+  // Dynamically generate for lotes not in AMORT_MAP
+  const loteInfo = getLote(loteId);
+  if (!loteInfo || !loteInfo.meses || !loteInfo.financiar) return null;
+
+  const tasa = loteInfo.tasa || 0.105;
+  const tm = tasa / 12;
+  const n = loteInfo.meses;
+  const cuota = loteInfo.cuota || Math.round(loteInfo.financiar * tm / (1 - Math.pow(1 + tm, -n)) * 100) / 100;
+
+  const tabla = [];
+  let saldo = loteInfo.financiar;
+  for (let i = 1; i <= n; i++) {
+    const interes  = Math.round(saldo * tm * 100) / 100;
+    const capital  = Math.round((cuota - interes) * 100) / 100;
+    const nuevoSaldo = Math.round((saldo - capital) * 100) / 100;
+    tabla.push([i, saldo, cuota, interes, capital, Math.max(0, nuevoSaldo)]);
+    saldo = Math.max(0, nuevoSaldo);
+    if (saldo <= 0) break;
+  }
+  return tabla;
 }
 
 function initAmortizacion() {
   // Populate the lot selector with only lots that have amortization tables
   const sel = document.getElementById('amort-select-lote');
-  const lotesConAmort = lotes.filter(l => AMORT_MAP[l.id] && l.meses > 0);
+  const lotesConAmort = lotes.filter(l => l.meses > 0 && l.propietario_id);
   sel.innerHTML = '<option value="">— Seleccionar lote —</option>' +
     lotesConAmort.map(l => {
       const c = l.propietario_id ? getCliente(l.propietario_id) : null;
@@ -4090,7 +4112,7 @@ function renderAmortizacion(loteId) {
   const pagosDeLote = pagos.filter(p => p.lote === loteId)
     .sort((a,b) => a.fecha.localeCompare(b.fecha));
   const cuotasPagadas = pagosDeLote.filter(p => p.concepto?.includes('/') || p.concepto === 'Abono').length;
-  const saldoActual = pagosDeLote.length > 0 ? pagosDeLote[pagosDeLote.length-1].saldo : loteInfo.financiar;
+  const saldoActual = pagosDeLote.length > 0 ? pagosDeLote[pagosDeLote.length-1].saldo : (loteInfo.valor || 0);
 
   // Stats
   const totalInteres = tabla.slice(0, cuotasPagadas).reduce((s,r) => s + (r[3]||0), 0);
