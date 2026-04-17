@@ -677,26 +677,58 @@
 
     <!-- PAGE: DASHBOARD -->
     <div class="page active" id="page-dashboard">
-      <div class="stat-grid">
+      <!-- Row 1: Lotes -->
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Lotes</div>
+      <div class="stat-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
         <div class="stat-card green">
-          <div class="label">Lote-habientes Activos</div>
-          <div class="value" id="stat-clientes">24</div>
-          <div class="sub">propietarios registrados</div>
+          <div class="label">Disponibles</div>
+          <div class="value" id="stat-disponibles">0</div>
+          <div class="sub">de 102 lotes</div>
         </div>
         <div class="stat-card blue">
-          <div class="label">Total Recibido</div>
-          <div class="value" id="stat-total">$0</div>
-          <div class="sub">en todos los meses</div>
+          <div class="label">Vendido a Plazo</div>
+          <div class="value" id="stat-plazo">0</div>
+          <div class="sub">lotes</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="label">Vendido Contado</div>
+          <div class="value" id="stat-contado">0</div>
+          <div class="sub">lotes</div>
         </div>
         <div class="stat-card amber">
-          <div class="label">Próximo Recibo</div>
-          <div class="value" id="stat-next-recibo">#0</div>
-          <div class="sub">número correlativo</div>
+          <div class="label">Reservados</div>
+          <div class="value" id="stat-reservados">0</div>
+          <div class="sub">lotes</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid var(--text-muted)">
+          <div class="label">Pendientes</div>
+          <div class="value" id="stat-pendientes">0</div>
+          <div class="sub">lotes</div>
+        </div>
+      </div>
+
+      <!-- Row 2: Finanzas y Clientes -->
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Finanzas y Clientes</div>
+      <div class="stat-grid" style="margin-bottom:24px">
+        <div class="stat-card green">
+          <div class="label">Total Recibido</div>
+          <div class="value" id="stat-total">$0</div>
+          <div class="sub" id="stat-mes-actual">este año</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="label">Recibido Este Mes</div>
+          <div class="value" id="stat-mes">$0</div>
+          <div class="sub">mes actual</div>
         </div>
         <div class="stat-card red">
-          <div class="label">Lotes en Mora</div>
-          <div class="value" id="stat-mora">0</div>
-          <div class="sub">pagos pendientes</div>
+          <div class="label">Saldo Pendiente</div>
+          <div class="value" id="stat-saldo-total">$0</div>
+          <div class="sub">por cobrar</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="label">Lote-habientes</div>
+          <div class="value" id="stat-clientes">0</div>
+          <div class="sub"><span id="stat-al-dia">0</span> al día · <span id="stat-mora" style="color:var(--red)">0</span> en mora</div>
         </div>
       </div>
 
@@ -1866,11 +1898,54 @@ function imprimirCotizacion() {
 // ═══════════════════════════════════════════════
 function renderDashboard() {
   const total = pagos.reduce((s,p) => s + (p.monto||0), 0);
-  document.getElementById('stat-clientes').textContent = clientes.length;
-  document.getElementById('stat-total').textContent = fmt(total);
-  document.getElementById('stat-next-recibo').textContent = '#' + getNextReciboNum();
+
+  // Lote stats
+  const disponibles  = lotes.filter(l => l.estado_plano === 'Disponible').length;
+  const plazo        = lotes.filter(l => l.estado_plano === 'Vendido a Plazo').length;
+  const contado      = lotes.filter(l => l.estado_plano === 'Vendido Contado').length;
+  const reservados   = lotes.filter(l => l.estado_plano === 'Reservado').length;
+  const pendientes   = lotes.filter(l => l.estado_plano === 'Pendiente').length;
+
+  document.getElementById('stat-disponibles').textContent  = disponibles;
+  document.getElementById('stat-plazo').textContent        = plazo;
+  document.getElementById('stat-contado').textContent      = contado;
+  document.getElementById('stat-reservados').textContent   = reservados;
+  document.getElementById('stat-pendientes').textContent   = pendientes;
+
+  // Finance stats
+  const hoy = new Date();
+  const MESES_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const mesActualKey = MESES_ES[hoy.getMonth()] + ' ' + hoy.getFullYear();
+  const mesActualFmt = MESES_ES[hoy.getMonth()].charAt(0).toUpperCase() + MESES_ES[hoy.getMonth()].slice(1) + ' ' + hoy.getFullYear();
+  const totalMes = pagos
+    .filter(p => p.mes && p.mes.toLowerCase() === mesActualKey.toLowerCase())
+    .reduce((s,p) => s + (p.monto||0), 0);
+
+  // Saldo pendiente total (last saldo per active plazo lote)
+  const saldoTotal = lotes.filter(l => l.meses > 0 && l.propietario_id).reduce((s,l) => {
+    const last = [...pagos].filter(p => p.lote === l.id).sort((a,b) => b.id - a.id)[0];
+    return s + (last ? (last.saldo||0) : (l.valor||0));
+  }, 0);
+
+  document.getElementById('stat-total').textContent      = fmt(total);
+  document.getElementById('stat-mes').textContent        = fmt(totalMes);
+  document.getElementById('stat-mes-actual').textContent = mesActualFmt;
+  document.getElementById('stat-saldo-total').textContent= fmt(saldoTotal);
+
+  // Client stats
   const moraCount = clientes.filter(c => mesesSinPagar(c.id) >= 2).length;
-  document.getElementById('stat-mora').textContent = moraCount;
+  const alDia     = clientes.filter(c => {
+    const misLotes = lotes.filter(l => l.propietario_id === c.id && l.meses > 0);
+    return misLotes.length > 0 && mesesSinPagar(c.id) < 2;
+  }).length;
+
+  document.getElementById('stat-clientes').textContent = clientes.length;
+  document.getElementById('stat-mora').textContent     = moraCount;
+  document.getElementById('stat-al-dia').textContent   = alDia;
+
+  // Keep next recibo for use elsewhere
+  const nextReciboEl = document.getElementById('stat-next-recibo');
+  if (nextReciboEl) nextReciboEl.textContent = '#' + getNextReciboNum();
 
   initProximosPagos();
 
@@ -2073,16 +2148,16 @@ function renderClientes(list) {
     const alertas = [];
     if (morosoAuto) alertas.push(`<span class="badge badge-red" title="${meses} meses sin cuota">⚠ ${meses}m sin pago</span>`);
     if (docsPend.length) alertas.push(`<span class="badge badge-amber" title="Pendiente: ${docsPend.join(', ')}">📋 Docs</span>`);
-    return `<tr>
+    return `<tr style="cursor:pointer" onclick="verPerfilCliente(${c.id})">
       <td><span style="font-weight:700;color:var(--accent);font-size:12px;letter-spacing:0.04em">${c.codigo}</span></td>
-      <td style="font-weight:500">${c.nombre}</td>
+      <td style="font-weight:500;color:var(--accent);text-decoration:underline;text-underline-offset:3px">${c.nombre}</td>
       <td style="font-size:12px;color:var(--text-muted)">${c.dui||'—'}</td>
       <td>${misLotes.map(l=>'<span class="badge badge-gray">'+l.id+'</span>').join(' ')}</td>
       <td>${c.tel||'<span style="color:var(--text-light)">—</span>'}</td>
       <td>${clasificacionBadge(c)}</td>
       <td>${alertas.length ? alertas.join(' ') : '<span style="color:var(--text-light);font-size:11px">—</span>'}</td>
       <td style="font-weight:600;color:var(--accent)">${saldo > 0 ? fmt(saldo) : totalPagado > 0 ? '<span class="badge badge-green">Saldado</span>' : '<span class="badge badge-gray">Sin pagos</span>'}</td>
-      <td>
+      <td onclick="event.stopPropagation()">
         <button class="btn btn-primary btn-sm" onclick="verPerfilCliente(${c.id})">Ver perfil</button>
       </td>
     </tr>`;
