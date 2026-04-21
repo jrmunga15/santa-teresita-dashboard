@@ -732,7 +732,13 @@
         </div>
       </div>
 
-
+      <!-- Botón temporal de mantenimiento -->
+      <div id="btn-limpiar-wrap" style="margin-bottom:16px;display:flex;justify-content:flex-end">
+        <button class="btn btn-secondary btn-sm" onclick="limpiarEstadosFirestore()"
+          style="font-size:11px;color:var(--text-muted);border-color:var(--border)">
+          🔧 Corregir estados en Firestore
+        </button>
+      </div>
 
       <div class="card">
         <div class="card-header">
@@ -2443,13 +2449,16 @@ function cambiarEstadoLote(loteId, nuevoEstado) {
   if (idx < 0) return;
   lotes[idx].estado_plano = nuevoEstado;
 
-  // Sync to Firestore — create doc if it doesn't exist yet, update if it does
   if (window._db) {
     const { collection, doc, setDoc } = window._fbFns;
-    // Use loteId as the document ID so it's always findable
-    const loteRef = doc(collection(window._db, 'lotes'), loteId);
+    // Use existing _docId if available, otherwise use loteId as docId
+    const docId = lotes[idx]._docId || loteId;
+    const loteRef = doc(collection(window._db, 'lotes'), docId);
     setDoc(loteRef, { id: loteId, estado_plano: nuevoEstado }, { merge: true })
-      .then(() => { lotes[idx]._docId = loteId; })
+      .then(() => {
+        lotes[idx]._docId = docId;
+        console.log(`✓ Estado ${loteId} → ${nuevoEstado} guardado en Firestore (doc: ${docId})`);
+      })
       .catch(err => console.error('Error guardando estado lote:', err));
   }
 
@@ -4366,12 +4375,15 @@ window.initFirestoreListeners = async function() {
       const fl = firestoreLotes.find(l => l.id === cl.id || l._docId === cl.id);
       const base = { ...cl, ...df };
       if (fl) {
-        base._docId         = fl._docId;
+        base._docId         = fl._docId; // always preserve the real Firestore doc ID
         base.propietario_id = fl.propietario_id ?? df.propietario_id ?? null;
         // Only use Firestore estado if the lote has a propietario (was intentionally sold)
         // For available/pending lotes, the seed catalogoLotes estado is always correct
         const hasOwner = (fl.propietario_id ?? df.propietario_id ?? null) !== null;
         if (hasOwner && fl.estado_plano) {
+          base.estado_plano = fl.estado_plano;
+        } else if (!hasOwner && fl.estado_plano && !['Vendido Contado','Vendido a Plazo'].includes(fl.estado_plano)) {
+          // Allow Reservado/Pendiente/Disponible changes even without propietario
           base.estado_plano = fl.estado_plano;
         }
         // Only restore financial data from Firestore if this lote is NOT in datosFinancieros
@@ -4423,6 +4435,55 @@ async function seedFirestore() {
 // ── Auto-fix stale estado_plano in Firestore ──
 // Lotes whose estado_plano is defined in catalogoLotes seed take precedence
 // over stale Firestore data. This runs once on load to correct discrepancies.
+async function limpiarEstadosFirestore() {
+  const db = window._db;
+  if (!db) { alert('Sin conexión a Firestore'); return; }
+  const { collection, doc, setDoc, deleteDoc, getDocs } = window._fbFns;
+
+  const btn = document.querySelector('[onclick="limpiarEstadosFirestore()"]');
+  if (btn) { btn.textContent = '⏳ Limpiando...'; btn.disabled = true; }
+
+  // Correct estado for each lote based on catalogoLotes seed
+  const seedEstados = {};
+  catalogoLotes.forEach(cl => { seedEstados[cl.id] = cl.estado_plano; });
+
+  try {
+    const snap = await getDocs(collection(db, 'lotes'));
+    let fixes = 0;
+    for (const d of snap.docs) {
+      const fl = d.data();
+      const loteId = fl.id || d.id;
+      const seedEstado = seedEstados[loteId];
+      const df = datosFinancieros[loteId];
+      const tieneOwner = fl.propietario_id || (df && df.propietario_id);
+
+      // If lote has no owner and Firestore has a "Vendido" state → fix it
+      if (!tieneOwner && fl.estado_plano && fl.estado_plano.includes('Vendido')) {
+        console.log(`Fixing ${loteId}: "${fl.estado_plano}" → "${seedEstado}"`);
+        await setDoc(doc(collection(db, 'lotes'), d.id),
+          { estado_plano: seedEstado }, { merge: true });
+        fixes++;
+      }
+      // If lote has no owner and no useful data → delete the document entirely
+      else if (!tieneOwner && !fl.propietario_id && !fl.valor) {
+        console.log(`Deleting empty doc for ${loteId}`);
+        await deleteDoc(doc(collection(db, 'lotes'), d.id));
+        fixes++;
+      }
+    }
+    if (btn) { btn.textContent = `✅ ${fixes} correcciones aplicadas`; btn.disabled = false; }
+    if (fixes === 0) {
+      if (btn) btn.textContent = '✓ Todo está correcto';
+    }
+    setTimeout(() => {
+      if (btn) { btn.textContent = '🔧 Corregir estados en Firestore'; btn.disabled = false; }
+    }, 3000);
+  } catch(e) {
+    console.error('Error limpiando Firestore:', e);
+    if (btn) { btn.textContent = '❌ Error — ver consola'; btn.disabled = false; }
+  }
+}
+
 async function fixEstadosFirestore() {
   const db = window._db;
   if (!db) return;
