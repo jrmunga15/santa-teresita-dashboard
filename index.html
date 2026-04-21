@@ -4368,9 +4368,13 @@ window.initFirestoreListeners = async function() {
       if (fl) {
         base._docId         = fl._docId;
         base.propietario_id = fl.propietario_id ?? df.propietario_id ?? null;
-        base.estado_plano   = fl.estado_plano  ?? cl.estado_plano;
+        // Only use Firestore estado if the lote has a propietario (was intentionally sold)
+        // For available/pending lotes, the seed catalogoLotes estado is always correct
+        const hasOwner = (fl.propietario_id ?? df.propietario_id ?? null) !== null;
+        if (hasOwner && fl.estado_plano) {
+          base.estado_plano = fl.estado_plano;
+        }
         // Only restore financial data from Firestore if this lote is NOT in datosFinancieros
-        // (i.e. it's a newly registered lote). For existing lotes, datosFinancieros is source of truth.
         if (!datosFinancieros[cl.id]) {
           if (fl.valor)                base.valor    = fl.valor;
           if (fl.reserva !== undefined)base.reserva  = fl.reserva;
@@ -4384,6 +4388,9 @@ window.initFirestoreListeners = async function() {
     });
     renderDashboard();
   });
+
+  // Fix any stale estados in Firestore on load
+  setTimeout(fixEstadosFirestore, 2000);
 };
 
 async function seedFirestore() {
@@ -4411,6 +4418,39 @@ async function seedFirestore() {
 
   await batch.commit();
   console.log('✅ Firestore seeded with initial data');
+}
+
+// ── Auto-fix stale estado_plano in Firestore ──
+// Lotes whose estado_plano is defined in catalogoLotes seed take precedence
+// over stale Firestore data. This runs once on load to correct discrepancies.
+async function fixEstadosFirestore() {
+  const db = window._db;
+  if (!db) return;
+  const { collection, doc, setDoc, getDocs } = window._fbFns;
+
+  // Source of truth: catalogoLotes seed estado_plano for these specific lotes
+  const correctEstados = {};
+  catalogoLotes.forEach(cl => {
+    // Only enforce for lotes NOT in datosFinancieros (no propietario)
+    // OR lotes where catalogoLotes has a definitive non-sold state
+    if (!datosFinancieros[cl.id] || !datosFinancieros[cl.id].propietario_id) {
+      correctEstados[cl.id] = cl.estado_plano;
+    }
+  });
+
+  try {
+    const snap = await getDocs(collection(db, 'lotes'));
+    for (const d of snap.docs) {
+      const fl = d.data();
+      const loteId = fl.id || d.id;
+      const correct = correctEstados[loteId];
+      if (correct && fl.estado_plano && fl.estado_plano !== correct) {
+        console.log(`Fixing ${loteId}: ${fl.estado_plano} → ${correct}`);
+        await setDoc(doc(collection(db, 'lotes'), d.id),
+          { estado_plano: correct }, { merge: true });
+      }
+    }
+  } catch(e) { console.warn('fixEstadosFirestore:', e); }
 }
 
 // ── Override registrarPago to save to Firestore ──
