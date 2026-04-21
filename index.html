@@ -1395,7 +1395,7 @@ let clientes = [
   { id:10, codigo:"LHPST-0010", nombre:"Wilber Eduardo Roldan Juarez", dui:"04194702-5", tel:"", ref:"Iris Tellez", benef:"", benef_dui:"", email:"", ocupacion:"", dir2:"", estado_civil:"", nacimiento:"", dui_vence:"", dui_foto_front:"", dui_foto_back:"", clasificacion:"normal", docs_dui:false, docs_contrato:false, fecha_contrato:"" },
   { id:11, codigo:"LHPST-0011", nombre:"Diocesis de Santa Ana", dui:"Pend.", tel:"", ref:"CMGM", benef:"", benef_dui:"", email:"", ocupacion:"", dir2:"", estado_civil:"", nacimiento:"", dui_vence:"", dui_foto_front:"", dui_foto_back:"", clasificacion:"normal", docs_dui:false, docs_contrato:false, fecha_contrato:"" },
   { id:12, codigo:"LHPST-0012", nombre:"Willian Adonaldo Rivera Velasquez", dui:"00553707-8", tel:"", ref:"", benef:"", benef_dui:"", email:"", ocupacion:"", dir2:"", estado_civil:"", nacimiento:"", dui_vence:"", dui_foto_front:"", dui_foto_back:"", clasificacion:"normal", docs_dui:false, docs_contrato:false, fecha_contrato:"" },
-  { id:13, codigo:"LHPST-0013", nombre:"Maria Dolores Andrade de Gonzalez", dui:"49694649", tel:"", ref:"Iris Tellez", benef:"", benef_dui:"", email:"", ocupacion:"", dir2:"", estado_civil:"", nacimiento:"", dui_vence:"", dui_foto_front:"", dui_foto_back:"", clasificacion:"normal", docs_dui:false, docs_contrato:false, fecha_contrato:"" },
+  { id:13, codigo:"LHPST-0013", nombre:"Maria Dolores Andrade de Gonzalez", dui:"49694649", tel:"", ref:"Iris Tellez", benef:"", benef_dui:"", email:"", ocupacion:"", dir2:"", estado_civil:"", nacimiento:"", dui_vence:"", dui_foto_front:"", dui_foto_back:"", clasificacion:"retirado", docs_dui:false, docs_contrato:false, fecha_contrato:"" },
   { id:14, codigo:"LHPST-0014", nombre:"Johanna Rosaly Roldan Juarez", dui:"04236383-4", tel:"", ref:"Iris Tellez", benef:"", benef_dui:"", email:"", ocupacion:"", dir2:"", estado_civil:"", nacimiento:"", dui_vence:"", dui_foto_front:"", dui_foto_back:"", clasificacion:"normal", docs_dui:false, docs_contrato:false, fecha_contrato:"" },
   { id:15, codigo:"LHPST-0015", nombre:"Mario Rene Zarpate Reyes", dui:"14291418-0", tel:"", ref:"CMGM", benef:"", benef_dui:"", email:"", ocupacion:"", dir2:"", estado_civil:"", nacimiento:"", dui_vence:"", dui_foto_front:"", dui_foto_back:"", clasificacion:"normal", docs_dui:false, docs_contrato:false, fecha_contrato:"" },
   { id:16, codigo:"LHPST-0016", nombre:"Tomas Ayala Interiano", dui:"02677294-2", tel:"", ref:"Rosita de Lagos", benef:"", benef_dui:"", email:"", ocupacion:"", dir2:"", estado_civil:"", nacimiento:"", dui_vence:"", dui_foto_front:"", dui_foto_back:"", clasificacion:"normal", docs_dui:false, docs_contrato:false, fecha_contrato:"" },
@@ -1538,8 +1538,8 @@ const datosFinancieros = {
   "B-15": { propietario_id:12, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:44,  cuota:500.00 },
   "B-19": { propietario_id:9,  valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
   "B-20": { propietario_id:9,  valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
-  "C-1":  { propietario_id:null, valor:15000, reserva:500,  financiar:14500, tasa:0.105,  meses:180, cuota:160.00 },
-  "C-2":  { propietario_id:null, valor:15000, reserva:500,  financiar:14500, tasa:0.105,  meses:180, cuota:160.00 },
+  "C-1":  { propietario_id:null, valor:0,     reserva:0,    financiar:0,     tasa:0.105,  meses:0,   cuota:0 },
+  "C-2":  { propietario_id:null, valor:0,     reserva:0,    financiar:0,     tasa:0.105,  meses:0,   cuota:0 },
   "C-19": { propietario_id:14, valor:15000, reserva:500,  financiar:0,     tasa:0,      meses:0,   cuota:0 },
   "C-20": { propietario_id:10, valor:15000, reserva:500,  financiar:0,     tasa:0,      meses:0,   cuota:0 },
   "D-17": { propietario_id:17, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
@@ -2127,6 +2127,7 @@ function registrarPagoDesde(cid, loteId) {
 function clasificacionBadge(c) {
   if (c.clasificacion === 'moroso')       return '<span class="badge badge-red">⚠ Moroso</span>';
   if (c.clasificacion === 'seguimiento')  return '<span class="badge badge-amber">👁 Seguimiento</span>';
+  if (c.clasificacion === 'retirado')     return '<span class="badge badge-gray">↩ Retirado</span>';
   return '<span class="badge badge-green">✓ Normal</span>';
 }
 function docsIncompletos(c) {
@@ -3824,6 +3825,7 @@ function editarPerfilCliente(cid) {
             <option value="normal"      ${(c.clasificacion||'normal')==='normal'     ?'selected':''}>✓ Normal</option>
             <option value="seguimiento" ${(c.clasificacion||'')==='seguimiento'?'selected':''}>👁 En seguimiento</option>
             <option value="moroso"      ${(c.clasificacion||'')==='moroso'     ?'selected':''}>⚠ Moroso</option>
+            <option value="retirado"    ${(c.clasificacion||'')==='retirado'   ?'selected':''}>↩ Retirado</option>
           </select>
         </div>
         <div class="form-group">
