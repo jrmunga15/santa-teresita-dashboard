@@ -705,39 +705,31 @@
       <!-- Row 2: Lotes -->
       <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Lotes</div>
       <div class="stat-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
-        <div class="stat-card green">
+        <div class="stat-card green" onclick="navegarLotesConFiltro('Disponible')" style="cursor:pointer" title="Ver lotes disponibles">
           <div class="label">Disponibles</div>
           <div class="value" id="stat-disponibles">0</div>
           <div class="sub" id="stat-disponibles-sub">de 102 lotes</div>
         </div>
-        <div class="stat-card blue">
+        <div class="stat-card blue" onclick="navegarLotesConFiltro('Vendido a Plazo')" style="cursor:pointer" title="Ver lotes a plazo">
           <div class="label">Vendido a Plazo</div>
           <div class="value" id="stat-plazo">0</div>
           <div class="sub" id="stat-plazo-sub">lotes</div>
         </div>
-        <div class="stat-card blue">
+        <div class="stat-card blue" onclick="navegarLotesConFiltro('Vendido Contado')" style="cursor:pointer" title="Ver lotes contado">
           <div class="label">Vendido Contado</div>
           <div class="value" id="stat-contado">0</div>
           <div class="sub" id="stat-contado-sub">lotes</div>
         </div>
-        <div class="stat-card amber">
+        <div class="stat-card amber" onclick="navegarLotesConFiltro('Reservado')" style="cursor:pointer" title="Ver lotes reservados">
           <div class="label">Reservados</div>
           <div class="value" id="stat-reservados">0</div>
           <div class="sub" id="stat-reservados-sub">lotes</div>
         </div>
-        <div class="stat-card" style="border-left:3px solid var(--text-muted)">
+        <div class="stat-card" onclick="navegarLotesConFiltro('Pendiente')" style="border-left:3px solid var(--text-muted);cursor:pointer" title="Ver lotes pendientes">
           <div class="label">Pendientes</div>
           <div class="value" id="stat-pendientes">0</div>
           <div class="sub" id="stat-pendientes-sub">lotes</div>
         </div>
-      </div>
-
-      <!-- Botón temporal de mantenimiento -->
-      <div id="btn-limpiar-wrap" style="margin-bottom:16px;display:flex;justify-content:flex-end">
-        <button class="btn btn-secondary btn-sm" onclick="limpiarEstadosFirestore()"
-          style="font-size:11px;color:var(--text-muted);border-color:var(--border)">
-          🔧 Corregir estados en Firestore
-        </button>
       </div>
 
       <div class="card">
@@ -1905,6 +1897,18 @@ function imprimirCotizacion() {
 // ═══════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════
+function navegarLotesConFiltro(estado) {
+  navigate('lotes');
+  // Wait for page to render then apply filter
+  setTimeout(() => {
+    const sel = document.getElementById('filter-estado-lote');
+    if (sel) {
+      sel.value = estado;
+      renderLotes();
+    }
+  }, 100);
+}
+
 function renderDashboard() {
   const total = pagos.reduce((s,p) => s + (p.monto||0), 0);
 
