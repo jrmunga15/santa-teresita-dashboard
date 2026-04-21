@@ -1434,7 +1434,7 @@ const catalogoLotes = [
   { id:"B-1",  area_m2:200.37, area_v2:286.689396, estado_plano:"Disponible" },
   { id:"B-2",  area_m2:203.00, area_v2:290.4524,   estado_plano:"Vendido a Plazo" },
   { id:"B-3",  area_m2:203.00, area_v2:290.4524,   estado_plano:"Disponible" },
-  { id:"B-4",  area_m2:200.37, area_v2:286.689396, estado_plano:"Disponible" },
+  { id:"B-4",  area_m2:200.37, area_v2:286.689396, estado_plano:"Vendido Contado" },
   { id:"B-5",  area_m2:200.00, area_v2:286.16,     estado_plano:"Vendido Contado" },
   { id:"B-6",  area_m2:200.00, area_v2:286.16,     estado_plano:"Disponible" },
   { id:"B-7",  area_m2:200.00, area_v2:286.16,     estado_plano:"Vendido Contado" },
@@ -1495,7 +1495,7 @@ const catalogoLotes = [
   { id:"E-2",  area_m2:532.27, area_v2:761.571916,  estado_plano:"Disponible" },
   { id:"E-3",  area_m2:531.59, area_v2:760.598972,  estado_plano:"Disponible" },
   { id:"E-4",  area_m2:788.61, area_v2:1128.343188, estado_plano:"Disponible" },
-  { id:"F-1",  area_m2:274.58, area_v2:392.869064,  estado_plano:"Reservado" },
+  { id:"F-1",  area_m2:274.58, area_v2:392.869064,  estado_plano:"Vendido Contado" },
   { id:"F-2",  area_m2:200.39, area_v2:286.718012,  estado_plano:"Vendido Contado" },
   { id:"F-3",  area_m2:200.39, area_v2:286.718012,  estado_plano:"Vendido Contado" },
   { id:"F-4",  area_m2:200.69, area_v2:287.147252,  estado_plano:"Vendido Contado" },
@@ -1511,8 +1511,8 @@ const catalogoLotes = [
   { id:"H-4",  area_m2:200.37, area_v2:286.683385,  estado_plano:"Vendido Contado" },
   { id:"H-5",  area_m2:200.00, area_v2:286.154,     estado_plano:"Disponible" },
   { id:"H-6",  area_m2:253.58, area_v2:362.822264,  estado_plano:"Vendido a Plazo" },
-  { id:"I-1",  area_m2:238.44, area_v2:341.159952,  estado_plano:"Vendido Contado" },
-  { id:"I-2",  area_m2:201.17, area_v2:287.834036,  estado_plano:"Vendido Contado" },
+  { id:"I-1",  area_m2:238.44, area_v2:341.159952,  estado_plano:"Reservado" },
+  { id:"I-2",  area_m2:201.17, area_v2:287.834036,  estado_plano:"Reservado" },
   { id:"I-3",  area_m2:200.02, area_v2:286.188616,  estado_plano:"Pendiente" },
   { id:"I-4",  area_m2:200.16, area_v2:286.388928,  estado_plano:"Pendiente" },
 ];
@@ -1544,6 +1544,7 @@ const datosFinancieros = {
   "C-20": { propietario_id:10, valor:15000, reserva:500,  financiar:0,     tasa:0,      meses:0,   cuota:0 },
   "D-17": { propietario_id:17, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
   "D-19": { propietario_id:17, valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
+  "B-4":  { propietario_id:25, valor:16250, reserva:0,    financiar:0,     tasa:0,      meses:0,   cuota:0 },
   "F-1":  { propietario_id:23, valor:21500, reserva:1500, financiar:0,     tasa:0,      meses:0,   cuota:0 },
   "F-2":  { propietario_id:21, valor:15750, reserva:1500, financiar:14250, tasa:0.105,  meses:0,   cuota:0 },
   "F-3":  { propietario_id:21, valor:15750, reserva:1500, financiar:14250, tasa:0.105,  meses:0,   cuota:0 },
@@ -1909,7 +1910,16 @@ function renderDashboard() {
   const reservados   = lotes.filter(l => l.estado_plano === 'Reservado');
   const pendientes   = lotes.filter(l => l.estado_plano === 'Pendiente');
 
-  const valorGrupo = arr => arr.reduce((s,l) => s + (l.valor||0), 0);
+  const valorGrupo = (arr, estado) => {
+    if (estado === 'Vendido Contado') {
+      // Use actual pagos received, not lote valor (some may be partially paid)
+      return arr.reduce((s,l) => {
+        const recibido = pagos.filter(p => p.lote === l.id).reduce((t,p) => t + (p.monto||0), 0);
+        return s + (recibido > 0 ? recibido : (l.valor||0));
+      }, 0);
+    }
+    return arr.reduce((s,l) => s + (l.valor||0), 0);
+  };
   const pct = n => Math.round(n / total_lotes * 100);
 
   document.getElementById('stat-disponibles').textContent  = disponibles.length;
@@ -1919,8 +1929,8 @@ function renderDashboard() {
   document.getElementById('stat-pendientes').textContent   = pendientes.length;
 
   document.getElementById('stat-disponibles-sub').textContent = `${pct(disponibles.length)}% de 102 lotes`;
-  document.getElementById('stat-plazo-sub').innerHTML     = `${pct(plazo.length)}% · <span style="color:var(--blue)">${fmt(valorGrupo(plazo))}</span>`;
-  document.getElementById('stat-contado-sub').innerHTML   = `${pct(contado.length)}% · <span style="color:var(--accent)">${fmt(valorGrupo(contado))}</span>`;
+  document.getElementById('stat-plazo-sub').innerHTML     = `${pct(plazo.length)}% · <span style="color:var(--blue)">${fmt(valorGrupo(plazo, 'Vendido a Plazo'))}</span>`;
+  document.getElementById('stat-contado-sub').innerHTML   = `${pct(contado.length)}% · <span style="color:var(--accent)">${fmt(valorGrupo(contado, 'Vendido Contado'))}</span>`;
   document.getElementById('stat-reservados-sub').textContent = `${pct(reservados.length)}% de 102 lotes`;
   document.getElementById('stat-pendientes-sub').textContent = `${pct(pendientes.length)}% de 102 lotes`;
 
