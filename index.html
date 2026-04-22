@@ -679,7 +679,7 @@
     <div class="page active" id="page-dashboard">
       <!-- Row 1: Finanzas y Clientes (ahora primero) -->
       <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Finanzas y Clientes</div>
-      <div class="stat-grid" style="margin-bottom:20px">
+      <div class="stat-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
         <div class="stat-card green">
           <div class="label">Total Recibido</div>
           <div class="value" id="stat-total">$0</div>
@@ -689,6 +689,11 @@
           <div class="label">Recibido Este Mes</div>
           <div class="value" id="stat-mes">$0</div>
           <div class="sub">mes actual</div>
+        </div>
+        <div class="stat-card green" style="border-left:3px solid #2d6a4f">
+          <div class="label">Ingreso Mensual Plazo</div>
+          <div class="value" id="stat-ingreso-mensual">$0</div>
+          <div class="sub" id="stat-ingreso-mensual-sub">cuotas activas</div>
         </div>
         <div class="stat-card red" onclick="navigate('saldos')" style="cursor:pointer" title="Ver saldos por lote">
           <div class="label">Saldo Pendiente</div>
@@ -1952,7 +1957,17 @@ function renderDashboard() {
   document.getElementById('stat-reservados-sub').textContent = `${pct(reservados.length)}% de 102 lotes`;
   document.getElementById('stat-pendientes-sub').textContent = `${pct(pendientes.length)}% de 102 lotes`;
 
-  // Finance stats
+  // Ingreso mensual teórico — suma de cuotas de todos los lotes a plazo activos con saldo > 0
+  const lotesPlazActivos = lotes.filter(l => l.meses > 0 && l.propietario_id && l.cuota > 0);
+  const ingresoMensual = lotesPlazActivos.reduce((s, l) => {
+    const lastPago = [...pagos].filter(p => p.lote === l.id).sort((a,b) => b.id - a.id)[0];
+    const saldo = lastPago ? (lastPago.saldo || 0) : (l.valor || 0);
+    return saldo > 0 ? s + l.cuota : s; // only count if still has balance
+  }, 0);
+
+  document.getElementById('stat-ingreso-mensual').textContent = fmt(ingresoMensual);
+  document.getElementById('stat-ingreso-mensual-sub').textContent =
+    `${lotesPlazActivos.filter(l => { const lp = [...pagos].filter(p=>p.lote===l.id).sort((a,b)=>b.id-a.id)[0]; return !lp || (lp.saldo||0) > 0; }).length} lotes activos`;
   const hoy = new Date();
   const MESES_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const mesActualKey = MESES_ES[hoy.getMonth()] + ' ' + hoy.getFullYear();
