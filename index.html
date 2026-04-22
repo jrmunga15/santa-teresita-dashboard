@@ -690,7 +690,7 @@
           <div class="value" id="stat-mes">$0</div>
           <div class="sub">mes actual</div>
         </div>
-        <div class="stat-card red">
+        <div class="stat-card red" onclick="navigate('saldos')" style="cursor:pointer" title="Ver saldos por lote">
           <div class="label">Saldo Pendiente</div>
           <div class="value" id="stat-saldo-total">$0</div>
           <div class="sub">por cobrar</div>
@@ -730,6 +730,14 @@
           <div class="value" id="stat-pendientes">0</div>
           <div class="sub" id="stat-pendientes-sub">lotes</div>
         </div>
+      </div>
+
+      <!-- Botón de mantenimiento Firestore -->
+      <div style="margin-bottom:16px;display:flex;justify-content:flex-end">
+        <button class="btn btn-secondary btn-sm" onclick="limpiarEstadosFirestore()"
+          style="font-size:11px;color:var(--text-muted);border-color:var(--border)">
+          🔧 Corregir estados en Firestore
+        </button>
       </div>
 
       <div class="card">
@@ -4447,9 +4455,9 @@ async function limpiarEstadosFirestore() {
   const btn = document.querySelector('[onclick="limpiarEstadosFirestore()"]');
   if (btn) { btn.textContent = '⏳ Limpiando...'; btn.disabled = true; }
 
-  // Correct estado for each lote based on catalogoLotes seed
-  const seedEstados = {};
-  catalogoLotes.forEach(cl => { seedEstados[cl.id] = cl.estado_plano; });
+  // Build correct estados from current lotes array (already merged seed + datosFinancieros)
+  const correctEstados = {};
+  lotes.forEach(l => { correctEstados[l.id] = l.estado_plano; });
 
   try {
     const snap = await getDocs(collection(db, 'lotes'));
@@ -4457,28 +4465,26 @@ async function limpiarEstadosFirestore() {
     for (const d of snap.docs) {
       const fl = d.data();
       const loteId = fl.id || d.id;
-      const seedEstado = seedEstados[loteId];
-      const df = datosFinancieros[loteId];
-      const tieneOwner = fl.propietario_id || (df && df.propietario_id);
+      const correct = correctEstados[loteId];
 
-      // If lote has no owner and Firestore has a "Vendido" state → fix it
-      if (!tieneOwner && fl.estado_plano && fl.estado_plano.includes('Vendido')) {
-        console.log(`Fixing ${loteId}: "${fl.estado_plano}" → "${seedEstado}"`);
+      if (!correct) continue; // unknown lote, skip
+
+      // Fix if Firestore estado doesn't match current lotes array
+      if (fl.estado_plano && fl.estado_plano !== correct) {
+        console.log(`Fixing ${loteId}: "${fl.estado_plano}" → "${correct}"`);
         await setDoc(doc(collection(db, 'lotes'), d.id),
-          { estado_plano: seedEstado }, { merge: true });
+          { estado_plano: correct }, { merge: true });
         fixes++;
       }
-      // If lote has no owner and no useful data → delete the document entirely
-      else if (!tieneOwner && !fl.propietario_id && !fl.valor) {
-        console.log(`Deleting empty doc for ${loteId}`);
+      // Delete empty docs with no useful data
+      else if (!fl.propietario_id && !fl.valor && !fl.estado_plano) {
         await deleteDoc(doc(collection(db, 'lotes'), d.id));
         fixes++;
       }
     }
-    if (btn) { btn.textContent = `✅ ${fixes} correcciones aplicadas`; btn.disabled = false; }
-    if (fixes === 0) {
-      if (btn) btn.textContent = '✓ Todo está correcto';
-    }
+
+    const msg = fixes > 0 ? `✅ ${fixes} corrección(es) aplicada(s)` : '✓ Todo está correcto';
+    if (btn) { btn.textContent = msg; btn.disabled = false; }
     setTimeout(() => {
       if (btn) { btn.textContent = '🔧 Corregir estados en Firestore'; btn.disabled = false; }
     }, 3000);
