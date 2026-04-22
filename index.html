@@ -1424,7 +1424,7 @@ let clientes = [
 // propietario_id, valor, reserva, financiar, tasa, meses, cuota: datos financieros
 // area_m2, area_v2: medidas del plano  |  estado_plano: del archivo DETALLE_AREA_LOTES.xlsx
 const catalogoLotes = [
-  { id:"A-1",  area_m2:200.37, area_v2:286.689396, estado_plano:"Pendiente" },
+  { id:"A-1",  area_m2:200.37, area_v2:286.689396, estado_plano:"Vendido a Plazo" },
   { id:"A-2",  area_m2:237.24, area_v2:339.442992, estado_plano:"Vendido a Plazo" },
   { id:"A-3",  area_m2:200.00, area_v2:286.16,     estado_plano:"Disponible" },
   { id:"A-4",  area_m2:237.19, area_v2:339.371452, estado_plano:"Vendido a Plazo" },
@@ -1530,6 +1530,7 @@ const catalogoLotes = [
 
 // Merge catalogo con datos financieros de los lotes que tienen pagos
 const datosFinancieros = {
+  "A-1":  { propietario_id:null, valor:18900, reserva:900,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
   "A-2":  { propietario_id:18, valor:21900, reserva:900,  financiar:21000, tasa:0.105,  meses:180, cuota:232.13 },
   "A-4":  { propietario_id:6,  valor:21900, reserva:900,  financiar:21000, tasa:0.105,  meses:180, cuota:232.13 },
   "A-5":  { propietario_id:5,  valor:18500, reserva:500,  financiar:18000, tasa:0.105,  meses:180, cuota:200.00 },
@@ -4404,33 +4405,16 @@ window.initFirestoreListeners = async function() {
       if (fl) {
         base._docId         = fl._docId;
         base.propietario_id = fl.propietario_id ?? df.propietario_id ?? null;
-        const hasOwner = base.propietario_id !== null && base.propietario_id !== undefined;
-        const validSoldEstados = ['Vendido Contado', 'Vendido a Plazo', 'Reservado', 'Disponible', 'Pendiente'];
-        if (fl.estado_plano && validSoldEstados.includes(fl.estado_plano)) {
-          if (hasOwner) {
-            // Lote with owner: Firestore wins ONLY if it's a valid sold state
-            // Correct stale "Pendiente"/"Disponible" for lotes that have propietario
-            if (['Vendido Contado','Vendido a Plazo'].includes(fl.estado_plano)) {
-              base.estado_plano = fl.estado_plano;
-            } else if (['Reservado','Pendiente','Disponible'].includes(fl.estado_plano)) {
-              // Keep seed estado — Firestore has stale data
-              // (will be fixed by limpiarEstadosFirestore)
-            }
-          } else {
-            // No owner: Firestore can set Reservado/Pendiente/Disponible freely
-            if (!['Vendido Contado','Vendido a Plazo'].includes(fl.estado_plano)) {
-              base.estado_plano = fl.estado_plano;
-            }
-          }
-        }
+        // Firestore always wins for estado_plano — it's the source of truth for ownership changes
+        if (fl.estado_plano) base.estado_plano = fl.estado_plano;
         // Only restore financial data from Firestore if NOT in datosFinancieros
         if (!datosFinancieros[cl.id]) {
-          if (fl.valor)                base.valor    = fl.valor;
-          if (fl.reserva !== undefined)base.reserva  = fl.reserva;
+          if (fl.valor)                base.valor     = fl.valor;
+          if (fl.reserva !== undefined)base.reserva   = fl.reserva;
           if (fl.financiar !== undefined) base.financiar = fl.financiar;
-          if (fl.tasa)                 base.tasa     = fl.tasa;
-          if (fl.meses !== undefined)  base.meses    = fl.meses;
-          if (fl.cuota !== undefined)  base.cuota    = fl.cuota;
+          if (fl.tasa)                 base.tasa      = fl.tasa;
+          if (fl.meses !== undefined)  base.meses     = fl.meses;
+          if (fl.cuota !== undefined)  base.cuota     = fl.cuota;
         }
       }
       return base;
