@@ -1212,50 +1212,14 @@
         </div>
       </div>
       <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:16px;">
-        <div style="font-size:12px;font-weight:600;color:var(--text-muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:12px;">Asignación de Lote</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">Lote a asignar</label>
-            <select class="form-control" id="cli-lote" onchange="onCliLoteChange()">
-              <option value="">— Sin asignar por ahora —</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Tipo de venta</label>
-            <select class="form-control" id="cli-tipo-venta" onchange="onCliLoteChange()">
-              <option value="plazo">A Plazo (180 cuotas)</option>
-              <option value="contado">Contado</option>
-            </select>
-          </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);letter-spacing:0.06em;text-transform:uppercase;">Asignación de Lotes</div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="agregarFilaLote()" style="font-size:11px">+ Agregar lote</button>
         </div>
-        <div class="form-grid" style="margin-top:10px">
-          <div class="form-group">
-            <label class="form-label">Precio del lote ($)</label>
-            <input type="number" class="form-control" id="cli-precio" placeholder="18500.00" step="0.01" oninput="onCliLoteChange()">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Monto de reserva ($)</label>
-            <input type="number" class="form-control" id="cli-reserva" placeholder="500.00" step="0.01" oninput="onCliLoteChange()">
-          </div>
+        <div id="cli-lotes-lista">
+          <!-- Filas de lotes se agregan dinámicamente -->
         </div>
-        <div class="form-grid" style="margin-top:0">
-          <div class="form-group">
-            <label class="form-label">Tasa de interés anual (%)</label>
-            <input type="number" class="form-control" id="cli-tasa" placeholder="10.5" step="0.01" oninput="onCliLoteChange()">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Forma de pago</label>
-            <select class="form-control" id="cli-forma-pago">
-              <option>Agrícola</option>
-              <option>BAC</option>
-              <option>Cheque</option>
-              <option>Cuscatlán</option>
-              <option>Efectivo</option>
-              <option>Transferencia</option>
-            </select>
-          </div>
-        </div>
-        <div id="cli-lote-info" style="display:none;background:var(--surface2);border-radius:var(--radius-sm);padding:12px;font-size:12px;margin-top:8px;"></div>
+        <div id="cli-lote-info" style="display:none"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -2443,7 +2407,7 @@ function verDetalleLote(loteId) {
         ${estadoSelect}
       </div>
       <button class="btn btn-secondary" onclick="closeModal('modal-detalle-lote')">Cerrar</button>
-      <button class="btn btn-primary" onclick="closeModal('modal-detalle-lote');openModal('modal-cliente')">+ Asignar lote-habiente</button>`;
+      <button class="btn btn-primary" onclick="closeModal('modal-detalle-lote');abrirAsignarPropietario('${loteId}')">+ Asignar lote-habiente</button>`;
   }
 
   openModal('modal-detalle-lote');
@@ -3133,56 +3097,238 @@ function registrarPago() {
 // CLIENTE
 // ═══════════════════════════════════════════════
 function setupModalCliente() {
-  ['cli-nombre','cli-dui','cli-tel','cli-ref','cli-benef','cli-benef-dui',
-   'cli-precio','cli-reserva','cli-tasa'].forEach(id => {
+  ['cli-nombre','cli-dui','cli-tel','cli-ref','cli-benef','cli-benef-dui'].forEach(id => {
     document.getElementById(id).value = '';
   });
-  document.getElementById('cli-lote-info').style.display = 'none';
-  document.getElementById('cli-tipo-venta').value = 'plazo';
-  document.getElementById('cli-lote').value = '';
-
-  const sel = document.getElementById('cli-lote');
-  const disponibles = lotes.filter(l => l.estado_plano === 'Disponible');
-  sel.innerHTML = '<option value="">— Sin asignar por ahora —</option>' +
-    disponibles.map(l => `<option value="${l.id}">${l.id} — ${l.area_m2} m²</option>`).join('');
+  // Reset multi-lote list with one empty row
+  document.getElementById('cli-lotes-lista').innerHTML = '';
+  agregarFilaLote();
 }
 
-function onCliLoteChange() {
-  const loteId  = document.getElementById('cli-lote').value;
-  const tipo    = document.getElementById('cli-tipo-venta').value;
-  const infoDiv = document.getElementById('cli-lote-info');
+let _filaLoteCount = 0;
+function agregarFilaLote() {
+  _filaLoteCount++;
+  const idx = _filaLoteCount;
+  const disponibles = lotes.filter(l => {
+    // Exclude lotes already selected in other rows
+    const seleccionados = Array.from(document.querySelectorAll('.cli-fila-lote-sel'))
+      .map(s => s.value).filter(Boolean);
+    return l.estado_plano === 'Disponible' && !seleccionados.includes(l.id);
+  });
 
-  if (!loteId) { infoDiv.style.display = 'none'; return; }
+  const fila = document.createElement('div');
+  fila.id = `cli-fila-lote-${idx}`;
+  fila.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;position:relative';
+  fila.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Lote ${idx}</span>
+      ${idx > 1 ? `<button type="button" onclick="eliminarFilaLote(${idx})" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;line-height:1;padding:0">×</button>` : ''}
+    </div>
+    <div class="form-grid">
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label">Lote</label>
+        <select class="form-control cli-fila-lote-sel" id="cli-lote-sel-${idx}" onchange="onFilaLoteChange(${idx})">
+          <option value="">— Sin asignar —</option>
+          ${disponibles.map(l => `<option value="${l.id}">${l.id} — ${l.area_m2} m²</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label">Tipo de venta</label>
+        <select class="form-control" id="cli-tipo-${idx}" onchange="onFilaLoteChange(${idx})">
+          <option value="plazo">A Plazo (180 cuotas)</option>
+          <option value="contado">Contado</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label">Precio ($)</label>
+        <input type="number" class="form-control" id="cli-precio-${idx}" placeholder="18500.00" step="0.01" oninput="onFilaLoteChange(${idx})">
+      </div>
+      <div class="form-group" style="margin-bottom:8px" id="cli-reserva-wrap-${idx}">
+        <label class="form-label">Reserva ($)</label>
+        <input type="number" class="form-control" id="cli-reserva-${idx}" placeholder="500.00" step="0.01" oninput="onFilaLoteChange(${idx})">
+      </div>
+    </div>
+    <div id="cli-fila-info-${idx}" style="display:none;background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:11px;margin-top:4px"></div>`;
+
+  document.getElementById('cli-lotes-lista').appendChild(fila);
+}
+
+function eliminarFilaLote(idx) {
+  const fila = document.getElementById(`cli-fila-lote-${idx}`);
+  if (fila) fila.remove();
+}
+
+function onFilaLoteChange(idx) {
+  const loteId = document.getElementById(`cli-lote-sel-${idx}`)?.value;
+  const tipo   = document.getElementById(`cli-tipo-${idx}`)?.value;
+  const infoDiv = document.getElementById(`cli-fila-info-${idx}`);
+  const reservaWrap = document.getElementById(`cli-reserva-wrap-${idx}`);
+
+  if (!loteId) { if(infoDiv) infoDiv.style.display = 'none'; return; }
 
   const l = getLote(loteId);
+  const precioEl  = document.getElementById(`cli-precio-${idx}`);
+  const reservaEl = document.getElementById(`cli-reserva-${idx}`);
 
-  const precioEl  = document.getElementById('cli-precio');
-  const reservaEl = document.getElementById('cli-reserva');
-  const tasaEl    = document.getElementById('cli-tasa');
-
-  // Only pre-fill if fields are empty (don't overwrite manual edits)
   if (!precioEl.value)  precioEl.value  = calcPrecioLote(l.area_m2, tipo);
-  if (!reservaEl.value) reservaEl.value = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA);
-  if (!tasaEl.value)    tasaEl.value    = TASA_ANUAL_DEFAULT;
+  if (!reservaEl.value && tipo !== 'contado')
+    reservaEl.value = l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA;
 
-  const valor    = parseFloat(precioEl.value)  || calcPrecioLote(l.area_m2, tipo);
-  const reservaRaw = reservaEl.value;
-  const reserva  = tipo === 'contado' ? 0 : (reservaRaw === '' ? RESERVA_PEQUEÑA : (parseFloat(reservaRaw) || 0));
-  const tasaPct  = parseFloat(tasaEl.value)    || TASA_ANUAL_DEFAULT;
-  const tasa     = tasaPct / 100;
+  if (reservaWrap) reservaWrap.style.display = tipo === 'contado' ? 'none' : '';
+  if (tipo === 'contado') reservaEl.value = 0;
+
+  const valor    = parseFloat(precioEl.value) || calcPrecioLote(l.area_m2, tipo);
+  const reserva  = tipo === 'contado' ? 0 : (parseFloat(reservaEl.value) || RESERVA_PEQUEÑA);
+  const tasa     = TASA_ANUAL_DEFAULT / 100;
   const financiar = tipo === 'contado' ? 0 : valor - reserva;
   const tm       = tasa / 12;
-  const cuota    = tipo === 'contado' ? 0 :
-    Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
+  const cuota    = tipo === 'contado' ? 0 : Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
 
   infoDiv.style.display = 'block';
   infoDiv.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
-      <div><div style="color:var(--text-muted)">Área</div><strong>${l.area_m2} m² / ${l.area_v2?.toFixed(2)} v²</strong></div>
-      <div><div style="color:var(--text-muted)">A financiar</div><strong>${tipo === 'contado' ? '—' : fmt(financiar)}</strong></div>
-      <div><div style="color:var(--text-muted)">${tipo === 'contado' ? 'Pago total' : 'Reserva'}</div><strong>${tipo === 'contado' ? fmt(valor) : fmt(reserva)}</strong></div>
-      <div><div style="color:var(--text-muted)">${tipo === 'contado' ? '—' : 'Cuota/mes'}</div><strong>${tipo === 'contado' ? '—' : fmt(cuota)}</strong></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+      <div><span style="color:var(--text-muted)">Área</span><br><strong>${l.area_m2} m²</strong></div>
+      <div><span style="color:var(--text-muted)">${tipo==='contado'?'Total':'A financiar'}</span><br><strong>${fmt(tipo==='contado'?valor:financiar)}</strong></div>
+      <div><span style="color:var(--text-muted)">${tipo==='contado'?'—':'Reserva'}</span><br><strong>${tipo==='contado'?'—':fmt(reserva)}</strong></div>
+      <div><span style="color:var(--text-muted)">${tipo==='contado'?'—':'Cuota/mes'}</span><br><strong>${tipo==='contado'?'—':fmt(cuota)}</strong></div>
     </div>`;
+}
+
+// Legacy — kept for compatibility
+function onCliLoteChange() {}
+
+// ── Asignar propietario existente a lote ──
+let _loteParaAsignar = null;
+
+function abrirAsignarPropietario(loteId) {
+  _loteParaAsignar = loteId;
+  const l = getLote(loteId);
+  document.getElementById('asignar-lote-id').textContent = `${loteId} — ${l.area_m2} m²`;
+  document.getElementById('asignar-cliente-search').value = '';
+  document.getElementById('asignar-cliente-id').value = '';
+  document.getElementById('asignar-cliente-seleccionado').style.display = 'none';
+  document.getElementById('asignar-dropdown').style.display = 'none';
+  document.getElementById('asignar-tipo-venta').value = 'plazo';
+  document.getElementById('asignar-precio').value = calcPrecioLote(l.area_m2, 'plazo');
+  document.getElementById('asignar-reserva').value = l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA;
+  document.getElementById('asignar-tasa').value = TASA_ANUAL_DEFAULT;
+  document.getElementById('asignar-plazo-fields').style.display = '';
+  onAsignarPrecioChange();
+  openModal('modal-asignar-propietario');
+}
+
+function filtrarClientesAsignar(q) {
+  const dd = document.getElementById('asignar-dropdown');
+  document.getElementById('asignar-cliente-id').value = '';
+  const term = q.toLowerCase().trim();
+  const results = term.length === 0 ? clientes
+    : clientes.filter(c => c.nombre.toLowerCase().includes(term) || c.codigo.toLowerCase().includes(term));
+  if (!results.length) {
+    dd.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--text-muted)">Sin resultados</div>';
+  } else {
+    dd.innerHTML = results.map(c => `
+      <div onclick="seleccionarClienteAsignar(${c.id},'${c.nombre.replace(/'/g,"\\'")}','${c.codigo}')"
+        style="padding:9px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border)"
+        onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''">
+        <span style="font-weight:500">${c.nombre}</span>
+        <span style="font-size:11px;color:var(--text-muted);margin-left:8px">${c.codigo}</span>
+      </div>`).join('');
+  }
+  dd.style.display = 'block';
+}
+
+function seleccionarClienteAsignar(id, nombre, codigo) {
+  document.getElementById('asignar-cliente-search').value = nombre;
+  document.getElementById('asignar-cliente-id').value = id;
+  document.getElementById('asignar-dropdown').style.display = 'none';
+  const sel = document.getElementById('asignar-cliente-seleccionado');
+  sel.style.display = 'block';
+  sel.textContent = `✓ ${nombre} (${codigo})`;
+}
+
+function onAsignarTipoChange() {
+  const tipo = document.getElementById('asignar-tipo-venta').value;
+  const l = getLote(_loteParaAsignar || '');
+  document.getElementById('asignar-plazo-fields').style.display = tipo === 'contado' ? 'none' : '';
+  if (tipo === 'contado') {
+    document.getElementById('asignar-precio').value = calcPrecioLote(l.area_m2 || 200, 'contado');
+  } else {
+    document.getElementById('asignar-precio').value = calcPrecioLote(l.area_m2 || 200, 'plazo');
+    document.getElementById('asignar-reserva').value = (l.area_m2 || 200) >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA;
+    document.getElementById('asignar-tasa').value = TASA_ANUAL_DEFAULT;
+  }
+  onAsignarPrecioChange();
+}
+
+function onAsignarPrecioChange() {
+  const tipo    = document.getElementById('asignar-tipo-venta').value;
+  const valor   = parseFloat(document.getElementById('asignar-precio').value) || 0;
+  const reserva = tipo === 'contado' ? 0 : (parseFloat(document.getElementById('asignar-reserva').value) || 0);
+  const tasaPct = parseFloat(document.getElementById('asignar-tasa').value) || TASA_ANUAL_DEFAULT;
+  const tasa    = tasaPct / 100;
+  const financiar = tipo === 'contado' ? 0 : valor - reserva;
+  const tm      = tasa / 12;
+  const cuota   = tipo === 'contado' ? 0 : Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
+
+  const resumen = document.getElementById('asignar-resumen');
+  if (valor > 0) {
+    resumen.style.display = 'block';
+    resumen.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(${tipo==='contado'?2:4},1fr);gap:8px">
+        <div><span style="color:var(--text-muted)">Valor</span><br><strong>${fmt(valor)}</strong></div>
+        ${tipo==='contado' ? '' : `<div><span style="color:var(--text-muted)">Reserva</span><br><strong>${fmt(reserva)}</strong></div>`}
+        ${tipo==='contado' ? '' : `<div><span style="color:var(--text-muted)">A financiar</span><br><strong>${fmt(financiar)}</strong></div>`}
+        ${tipo==='contado' ? '' : `<div><span style="color:var(--text-muted)">Cuota/mes</span><br><strong style="color:var(--accent)">${fmt(cuota)}</strong></div>`}
+      </div>`;
+  } else {
+    resumen.style.display = 'none';
+  }
+}
+
+async function confirmarAsignarPropietario() {
+  const loteId = _loteParaAsignar;
+  const cid    = parseInt(document.getElementById('asignar-cliente-id').value);
+  if (!loteId || !cid) { alert('Selecciona un lote-habiente de la lista.'); return; }
+
+  const tipo    = document.getElementById('asignar-tipo-venta').value;
+  const l       = getLote(loteId);
+  const valor   = parseFloat(document.getElementById('asignar-precio').value) || calcPrecioLote(l.area_m2, tipo);
+  const reserva = tipo === 'contado' ? 0 : (parseFloat(document.getElementById('asignar-reserva').value) || RESERVA_PEQUEÑA);
+  const tasaPct = parseFloat(document.getElementById('asignar-tasa').value) || TASA_ANUAL_DEFAULT;
+  const tasa    = tasaPct / 100;
+  const financiar = tipo === 'contado' ? 0 : valor - reserva;
+  const tm      = tasa / 12;
+  const meses   = tipo === 'contado' ? 0 : 180;
+  const cuota   = tipo === 'contado' ? 0 : Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
+  const estadoPlano = tipo === 'contado' ? 'Vendido Contado' : 'Vendido a Plazo';
+
+  // Update local array
+  const loteIdx = lotes.findIndex(x => x.id === loteId);
+  if (loteIdx >= 0) {
+    lotes[loteIdx].propietario_id = cid;
+    lotes[loteIdx].valor          = valor;
+    lotes[loteIdx].reserva        = reserva;
+    lotes[loteIdx].financiar      = financiar;
+    lotes[loteIdx].tasa           = tasa;
+    lotes[loteIdx].meses          = meses;
+    lotes[loteIdx].cuota          = cuota;
+    lotes[loteIdx].estado_plano   = estadoPlano;
+  }
+
+  // Save to Firestore
+  if (window._db) {
+    const { collection, doc, setDoc } = window._fbFns;
+    const loteRef = doc(collection(window._db, 'lotes'), loteId);
+    await setDoc(loteRef, { id:loteId, propietario_id:cid, estado_plano:estadoPlano, valor, reserva, financiar, tasa, meses, cuota }, { merge:true });
+  }
+
+  closeModal('modal-asignar-propietario');
+  renderLotes();
+  renderDashboard();
+  const c = getCliente(cid);
+  alert(`✅ Lote ${loteId} asignado a ${c.nombre}`);
 }
 
 function guardarCliente() {
@@ -4616,24 +4762,28 @@ window.guardarCliente = async function() {
     origen_fondos:'', origen_fondos_detalle:'',
   };
 
-  const loteId = document.getElementById('cli-lote').value;
-  const tipo   = document.getElementById('cli-tipo-venta').value;
+  // Collect all lote rows
+  const filas = document.querySelectorAll('#cli-lotes-lista > div[id^="cli-fila-lote-"]');
+  const lotesAsignados = [];
 
-  if (loteId) {
+  for (const fila of filas) {
+    const idx = fila.id.replace('cli-fila-lote-', '');
+    const loteId = document.getElementById(`cli-lote-sel-${idx}`)?.value;
+    const tipo   = document.getElementById(`cli-tipo-${idx}`)?.value || 'plazo';
+    if (!loteId) continue;
+
     const l        = getLote(loteId);
-    const valor    = parseFloat(document.getElementById('cli-precio').value)  || calcPrecioLote(l.area_m2, tipo);
-    const reserva  = tipo === 'contado' ? 0 : (parseFloat(document.getElementById('cli-reserva').value) || RESERVA_PEQUEÑA);
-    const tasaPct  = parseFloat(document.getElementById('cli-tasa').value)    || TASA_ANUAL_DEFAULT;
-    const tasa     = tasaPct / 100;
+    const valor    = parseFloat(document.getElementById(`cli-precio-${idx}`)?.value) || calcPrecioLote(l.area_m2, tipo);
+    const reserva  = tipo === 'contado' ? 0 : (parseFloat(document.getElementById(`cli-reserva-${idx}`)?.value) || RESERVA_PEQUEÑA);
+    const tasa     = TASA_ANUAL_DEFAULT / 100;
     const financiar = tipo === 'contado' ? 0 : valor - reserva;
     const tm       = tasa / 12;
     const meses    = tipo === 'contado' ? 0 : 180;
-    const cuota    = tipo === 'contado' ? 0 :
-      Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
+    const cuota    = tipo === 'contado' ? 0 : Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
     const estadoPlano = tipo === 'contado' ? 'Vendido Contado' : 'Vendido a Plazo';
 
-    // Update local lotes array immediately
-    const loteIdx = lotes.findIndex(l => l.id === loteId);
+    // Update local lotes array
+    const loteIdx = lotes.findIndex(x => x.id === loteId);
     if (loteIdx >= 0) {
       lotes[loteIdx].propietario_id = newId;
       lotes[loteIdx].valor          = valor;
@@ -4646,15 +4796,12 @@ window.guardarCliente = async function() {
     }
 
     // Save to Firestore
-    const loteOwnership = {
-      id: loteId,
-      propietario_id: newId,
-      estado_plano: estadoPlano,
-      valor, reserva, financiar, tasa, meses, cuota
-    };
     const { collection: col, doc, setDoc } = window._fbFns;
-    const loteRef = doc(col(db, 'lotes'), loteId);
-    await setDoc(loteRef, loteOwnership, { merge: true });
+    await setDoc(doc(col(db, 'lotes'), loteId),
+      { id:loteId, propietario_id:newId, estado_plano:estadoPlano, valor, reserva, financiar, tasa, meses, cuota },
+      { merge: true });
+
+    lotesAsignados.push(loteId);
   }
 
   // Add client to local array and Firestore
@@ -4666,7 +4813,8 @@ window.guardarCliente = async function() {
   renderLotes();
   renderDashboard();
   document.getElementById('stat-clientes').textContent = clientes.length;
-  alert(`✅ Lote-habiente registrado: ${codigo} — ${nombre}${loteId ? '\nLote ' + loteId + ' asignado.' : ''}`);
+  const lotesStr = lotesAsignados.length ? '\nLotes asignados: ' + lotesAsignados.join(', ') : '';
+  alert(`✅ Lote-habiente registrado: ${codigo} — ${nombre}${lotesStr}`);
 };
 
 // ── Override guardarEdicionPerfil to save to Firestore ──
@@ -4780,6 +4928,68 @@ window.guardarEdicionPerfil = async function(cid) {
     </div>
     <div class="modal-body" id="modal-lote-body"></div>
     <div class="modal-footer" id="modal-lote-footer"></div>
+  </div>
+</div>
+
+<!-- Modal Asignar Propietario a Lote -->
+<div class="modal-overlay" id="modal-asignar-propietario">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <span class="modal-title">Asignar Lote-habiente</span>
+      <button class="modal-close" onclick="closeModal('modal-asignar-propietario')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
+        Lote: <strong id="asignar-lote-id" style="color:var(--accent)"></strong>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Buscar lote-habiente existente</label>
+        <div style="position:relative">
+          <input type="text" class="form-control" id="asignar-cliente-search"
+            placeholder="Buscar por nombre..."
+            oninput="filtrarClientesAsignar(this.value)"
+            onblur="setTimeout(()=>document.getElementById('asignar-dropdown').style.display='none',150)"
+            autocomplete="off">
+          <input type="hidden" id="asignar-cliente-id" value="">
+          <div id="asignar-dropdown" style="
+            display:none; position:absolute; top:100%; left:0; right:0;
+            background:#fff; border:1px solid var(--border); border-top:none;
+            border-radius:0 0 var(--radius-sm) var(--radius-sm);
+            max-height:220px; overflow-y:auto; z-index:300;
+            box-shadow:var(--shadow);
+          "></div>
+        </div>
+        <div id="asignar-cliente-seleccionado" style="display:none;margin-top:8px;background:var(--accent-pale);border-radius:6px;padding:8px 12px;font-size:13px;color:var(--accent);font-weight:500"></div>
+      </div>
+      <div class="form-grid" style="margin-top:12px">
+        <div class="form-group">
+          <label class="form-label">Tipo de venta</label>
+          <select class="form-control" id="asignar-tipo-venta" onchange="onAsignarTipoChange()">
+            <option value="plazo">A Plazo (180 cuotas)</option>
+            <option value="contado">Contado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Precio del lote ($)</label>
+          <input type="number" class="form-control" id="asignar-precio" placeholder="18500.00" step="0.01" oninput="onAsignarPrecioChange()">
+        </div>
+      </div>
+      <div class="form-grid" id="asignar-plazo-fields">
+        <div class="form-group">
+          <label class="form-label">Monto de reserva ($)</label>
+          <input type="number" class="form-control" id="asignar-reserva" placeholder="500.00" step="0.01" oninput="onAsignarPrecioChange()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tasa de interés anual (%)</label>
+          <input type="number" class="form-control" id="asignar-tasa" placeholder="10.5" step="0.01" oninput="onAsignarPrecioChange()">
+        </div>
+      </div>
+      <div id="asignar-resumen" style="display:none;background:var(--surface2);border-radius:6px;padding:10px 14px;font-size:12px;margin-top:8px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-asignar-propietario')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarAsignarPropietario()">✓ Asignar</button>
+    </div>
   </div>
 </div>
 
