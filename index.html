@@ -4646,26 +4646,31 @@ async function fixEstadosFirestore() {
   if (!db) return;
   const { collection, doc, setDoc, getDocs } = window._fbFns;
 
-  // Source of truth: catalogoLotes seed estado_plano for these specific lotes
-  const correctEstados = {};
-  catalogoLotes.forEach(cl => {
-    // Only enforce for lotes NOT in datosFinancieros (no propietario)
-    // OR lotes where catalogoLotes has a definitive non-sold state
-    if (!datosFinancieros[cl.id] || !datosFinancieros[cl.id].propietario_id) {
-      correctEstados[cl.id] = cl.estado_plano;
-    }
-  });
+  // Only correct lotes that are in datosFinancieros with a propietario_id
+  // but have a wrong estado in Firestore.
+  // NEVER revert lotes that have propietario_id in Firestore (they were intentionally sold).
+  const seedEstados = {};
+  catalogoLotes.forEach(cl => { seedEstados[cl.id] = cl.estado_plano; });
 
   try {
     const snap = await getDocs(collection(db, 'lotes'));
     for (const d of snap.docs) {
       const fl = d.data();
       const loteId = fl.id || d.id;
-      const correct = correctEstados[loteId];
-      if (correct && fl.estado_plano && fl.estado_plano !== correct) {
-        console.log(`Fixing ${loteId}: ${fl.estado_plano} → ${correct}`);
+
+      // If Firestore says this lote has an owner → NEVER touch its estado
+      if (fl.propietario_id) continue;
+
+      // If lote has no owner in Firestore but seed says it's Disponible/Pendiente
+      // and Firestore has a wrong "Vendido" state → fix it
+      const seedEstado = seedEstados[loteId];
+      const dfProp = datosFinancieros[loteId]?.propietario_id;
+      if (!dfProp && seedEstado && fl.estado_plano &&
+          fl.estado_plano !== seedEstado &&
+          ['Vendido Contado','Vendido a Plazo'].includes(fl.estado_plano)) {
+        console.log(`Fixing ${loteId}: "${fl.estado_plano}" → "${seedEstado}"`);
         await setDoc(doc(collection(db, 'lotes'), d.id),
-          { estado_plano: correct }, { merge: true });
+          { estado_plano: seedEstado }, { merge: true });
       }
     }
   } catch(e) { console.warn('fixEstadosFirestore:', e); }
