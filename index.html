@@ -3263,6 +3263,8 @@ let _loteParaAsignar = null;
 function abrirAsignarPropietario(loteId) {
   _loteParaAsignar = loteId;
   const l = getLote(loteId);
+  // Restore plain text (in case it was a selector from abrirAsignarLoteDesdePerfilCliente)
+  document.getElementById('asignar-lote-id').innerHTML = '';
   document.getElementById('asignar-lote-id').textContent = `${loteId} — ${l.area_m2} m²`;
   document.getElementById('asignar-cliente-search').value = '';
   document.getElementById('asignar-cliente-id').value = '';
@@ -3917,9 +3919,10 @@ function verPerfilCliente(cid) {
     html += `<div style="padding:40px;text-align:center;color:var(--text-muted);font-size:13px">Este cliente no tiene lotes asignados.</div>`;
   }
 
-  html += `<div style="padding:14px 20px;background:var(--surface2);border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+  html += `<div style="padding:14px 20px;background:var(--surface2);border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
     <button class="btn btn-secondary btn-sm" onclick="printPerfilCliente(${cid})">📄 Descargar PDF</button>
     <button class="btn btn-amber btn-sm" onclick="editarPerfilCliente(${cid})">✏ Editar perfil</button>
+    <button class="btn btn-primary btn-sm" onclick="abrirAsignarLoteDesdePerfilCliente(${cid})">＋ Asignar Lote</button>
     <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-perfil-cliente')">Cerrar</button>
   </div>`;
 
@@ -3928,7 +3931,65 @@ function verPerfilCliente(cid) {
   openModal('modal-perfil-cliente');
 }
 
-function previewDuiFoto(input, previewId, field, cid) {
+function abrirAsignarLoteDesdePerfilCliente(cid) {
+  // Pre-select the client in the asignar-propietario modal, then open it
+  // We need to pick a lot first — show a mini-modal or reuse the available lots
+  const c = getCliente(cid);
+  if (!c) return;
+
+  // Get first available lot to pre-populate (user will change it)
+  const disponibles = lotes.filter(l => l.estado_plano === 'Disponible');
+  if (!disponibles.length) {
+    alert('No hay lotes disponibles para asignar.');
+    return;
+  }
+
+  // Close profile, open asignar modal
+  closeModal('modal-perfil-cliente');
+
+  // We need to show a lot selector first — use a simple prompt-style overlay
+  _loteParaAsignar = disponibles[0].id;
+  const l = disponibles[0];
+  document.getElementById('asignar-lote-id').textContent = `${l.id} — ${l.area_m2} m²`;
+
+  // Pre-fill client
+  document.getElementById('asignar-cliente-search').value = c.nombre;
+  document.getElementById('asignar-cliente-id').value = cid;
+  document.getElementById('asignar-cliente-seleccionado').style.display = 'block';
+  document.getElementById('asignar-cliente-seleccionado').textContent = `✓ ${c.nombre} (${c.codigo})`;
+  document.getElementById('asignar-dropdown').style.display = 'none';
+
+  // Set defaults
+  document.getElementById('asignar-tipo-venta').value = 'plazo';
+  document.getElementById('asignar-precio').value = calcPrecioLote(l.area_m2, 'plazo');
+  document.getElementById('asignar-reserva').value = l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA;
+  document.getElementById('asignar-tasa').value = TASA_ANUAL_DEFAULT;
+  document.getElementById('asignar-plazo-fields').style.display = '';
+  document.getElementById('asignar-meses-wrap').style.display = '';
+  if (!document.getElementById('asignar-meses').value)
+    document.getElementById('asignar-meses').value = 180;
+
+  // Rebuild the lot selector to show all available lots
+  const loteIdEl = document.getElementById('asignar-lote-id');
+  loteIdEl.innerHTML = `<select class="form-control" id="asignar-lote-selector" onchange="onAsignarLoteSelectorChange()" style="font-weight:700;color:var(--accent);max-width:280px">
+    ${disponibles.map(dl => `<option value="${dl.id}">${dl.id} — ${dl.area_m2} m²</option>`).join('')}
+  </select>`;
+
+  onAsignarPrecioChange();
+  openModal('modal-asignar-propietario');
+}
+
+function onAsignarLoteSelectorChange() {
+  const sel = document.getElementById('asignar-lote-selector');
+  if (!sel) return;
+  _loteParaAsignar = sel.value;
+  const l = getLote(_loteParaAsignar);
+  const tipo = document.getElementById('asignar-tipo-venta').value;
+  document.getElementById('asignar-precio').value = calcPrecioLote(l.area_m2, tipo);
+  document.getElementById('asignar-reserva').value = l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA;
+  onAsignarPrecioChange();
+}
+
   if (!input.files || !input.files[0]) return;
   const file = input.files[0];
   const reader = new FileReader();
@@ -4711,14 +4772,20 @@ async function fixEstadosFirestore() {
   if (!db) return;
   const { collection, doc, setDoc, getDocs } = window._fbFns;
 
-  // Source of truth: catalogoLotes seed estado_plano for these specific lotes
+  // Source of truth: catalogoLotes seed estado_plano for lotes with no owner
+  // NEVER overwrite estado_plano if Firestore already has a propietario_id — that means
+  // the lot was sold via the app and Firestore is the source of truth for it.
   const correctEstados = {};
   catalogoLotes.forEach(cl => {
-    // Only enforce for lotes NOT in datosFinancieros (no propietario)
-    // OR lotes where catalogoLotes has a definitive non-sold state
-    if (!datosFinancieros[cl.id] || !datosFinancieros[cl.id].propietario_id) {
+    // Only enforce for lotes that have a hardcoded propietario in datosFinancieros
+    // OR lotes with a definitive sold state in catalogoLotes itself
+    const dfEntry = datosFinancieros[cl.id];
+    if (dfEntry && dfEntry.propietario_id) {
+      // Hardcoded sale — enforce catalogoLotes estado
       correctEstados[cl.id] = cl.estado_plano;
     }
+    // Lotes with no entry in datosFinancieros and no propietario: do NOT enforce
+    // because Firestore may have a newer sale recorded via the app
   });
 
   try {
@@ -4726,6 +4793,10 @@ async function fixEstadosFirestore() {
     for (const d of snap.docs) {
       const fl = d.data();
       const loteId = fl.id || d.id;
+
+      // If Firestore says this lot has a propietario, NEVER reset its estado
+      if (fl.propietario_id) continue;
+
       const correct = correctEstados[loteId];
       if (correct && fl.estado_plano && fl.estado_plano !== correct) {
         console.log(`Fixing ${loteId}: ${fl.estado_plano} → ${correct}`);
