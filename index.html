@@ -1033,20 +1033,26 @@
             <div class="form-group">
               <label class="form-label">Tipo de venta</label>
               <select class="form-control" id="cot-tipo" onchange="onCotLoteChange()">
-                <option value="plazo">A Plazo (180 cuotas)</option>
+                <option value="plazo">A Plazo</option>
                 <option value="contado">Contado</option>
               </select>
             </div>
-            <div class="form-group">
-              <label class="form-label">Precio del lote ($)</label>
-              <input type="number" class="form-control" id="cot-precio" placeholder="18500.00" step="0.01" oninput="onCotPrecioChange()">
+            <div class="form-group" id="cot-meses-wrap">
+              <label class="form-label">Plazo (meses)</label>
+              <input type="number" class="form-control" id="cot-meses" value="180" min="1" max="360" step="1" oninput="renderCotizacion()">
             </div>
           </div>
           <div class="form-grid">
             <div class="form-group">
+              <label class="form-label">Precio del lote ($)</label>
+              <input type="number" class="form-control" id="cot-precio" placeholder="18500.00" step="0.01" oninput="onCotPrecioChange()">
+            </div>
+            <div class="form-group">
               <label class="form-label">Precio por m²</label>
               <input type="number" class="form-control" id="cot-precio-m2" placeholder="92.50" step="0.01" oninput="onCotM2Change()" style="background:var(--surface2)">
             </div>
+          </div>
+          <div class="form-grid">
             <div class="form-group">
               <label class="form-label">Precio por v²</label>
               <input type="number" class="form-control" id="cot-precio-v2" placeholder="64.50" step="0.01" oninput="onCotV2Change()" style="background:var(--surface2)">
@@ -1711,6 +1717,11 @@ function onCotLoteChange() {
   document.getElementById('cot-precio-v2').value = l.area_v2  > 0 ? (precio / l.area_v2).toFixed(2)  : '';
   document.getElementById('cot-reserva').value   = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA);
   document.getElementById('cot-tasa').value      = TASA_ANUAL_DEFAULT;
+  // Show/hide meses field
+  const mesesWrap = document.getElementById('cot-meses-wrap');
+  if (mesesWrap) mesesWrap.style.display = tipo === 'contado' ? 'none' : '';
+  if (tipo === 'plazo' && !document.getElementById('cot-meses').value)
+    document.getElementById('cot-meses').value = 180;
   renderCotizacion();
 }
 
@@ -1760,15 +1771,18 @@ function renderCotizacion() {
   const valor   = parseFloat(document.getElementById('cot-precio').value)  || 0;
   const reserva = tipo === 'contado' ? 0 : (parseFloat(document.getElementById('cot-reserva').value) || 0);
   const tasaPct = parseFloat(document.getElementById('cot-tasa').value)    || TASA_ANUAL_DEFAULT;
+  const meses   = tipo === 'contado' ? 0 : (parseInt(document.getElementById('cot-meses')?.value) || 180);
   if (!loteId || !valor) { document.getElementById('cot-preview').innerHTML = ''; return; }
 
   const l        = getLote(loteId);
   const tasa     = tasaPct / 100;
   const financiar = tipo === 'contado' ? 0 : valor - reserva;
   const tm       = tasa / 12;
-  const cuota    = tipo === 'contado' ? 0 : Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
-  const totalPlazo = tipo === 'contado' ? valor : reserva + (cuota * 180);
+  const cuota    = tipo === 'contado' ? 0 :
+    (meses > 0 ? Math.round(financiar * tm / (1 - Math.pow(1 + tm, -meses)) * 100) / 100 : 0);
+  const totalPlazo = tipo === 'contado' ? valor : reserva + (cuota * meses);
   const totalInteres = tipo === 'contado' ? 0 : totalPlazo - valor;
+  const años = meses >= 12 ? `${Math.floor(meses/12)} año${Math.floor(meses/12)>1?'s':''}${meses%12>0?' '+meses%12+' mes'+(meses%12>1?'es':''):''}` : `${meses} mes${meses>1?'es':''}`;
 
   document.getElementById('cot-preview').innerHTML = `
     <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-top:8px" id="cot-doc">
@@ -1806,7 +1820,7 @@ function renderCotizacion() {
           <div style="background:var(--surface2);padding:12px;border-radius:6px">
             <div style="color:var(--text-muted);font-size:11px">Modalidad</div>
             <div style="font-weight:600">${tipo === 'contado' ? 'Contado' : 'A Plazo'}</div>
-            ${tipo === 'plazo' ? `<div style="font-size:11px;color:var(--text-muted)">180 cuotas · ${tasaPct}% anual</div>` : ''}
+            ${tipo === 'plazo' ? `<div style="font-size:11px;color:var(--text-muted)">${meses} cuotas · ${tasaPct}% anual</div>` : ''}
           </div>
         </div>
       </div>
@@ -1828,7 +1842,7 @@ function renderCotizacion() {
             <strong style="color:var(--accent);font-size:18px">${fmt(cuota)}</strong>
           </div>
           <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:13px">
-            <span style="color:var(--text-muted)">Plazo</span><span>180 meses (15 años)</span>
+            <span style="color:var(--text-muted)">Plazo</span><span>${meses} meses (${años})</span>
           </div>` : `
           <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px">
             <strong>Pago único de contado</strong><strong style="color:var(--accent)">${fmt(valor)}</strong>
@@ -3110,7 +3124,6 @@ function agregarFilaLote() {
   _filaLoteCount++;
   const idx = _filaLoteCount;
   const disponibles = lotes.filter(l => {
-    // Exclude lotes already selected in other rows
     const seleccionados = Array.from(document.querySelectorAll('.cli-fila-lote-sel'))
       .map(s => s.value).filter(Boolean);
     return l.estado_plano === 'Disponible' && !seleccionados.includes(l.id);
@@ -3135,7 +3148,7 @@ function agregarFilaLote() {
       <div class="form-group" style="margin-bottom:8px">
         <label class="form-label">Tipo de venta</label>
         <select class="form-control" id="cli-tipo-${idx}" onchange="onFilaLoteChange(${idx})">
-          <option value="plazo">A Plazo (180 cuotas)</option>
+          <option value="plazo">A Plazo</option>
           <option value="contado">Contado</option>
         </select>
       </div>
@@ -3148,6 +3161,16 @@ function agregarFilaLote() {
       <div class="form-group" style="margin-bottom:8px" id="cli-reserva-wrap-${idx}">
         <label class="form-label">Reserva ($)</label>
         <input type="number" class="form-control" id="cli-reserva-${idx}" placeholder="500.00" step="0.01" oninput="onFilaLoteChange(${idx})">
+      </div>
+    </div>
+    <div class="form-grid" id="cli-meses-wrap-${idx}">
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label">Plazo (meses)</label>
+        <input type="number" class="form-control" id="cli-meses-${idx}" value="180" min="1" max="360" step="1" oninput="onFilaLoteChange(${idx})">
+      </div>
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label">Tasa anual (%)</label>
+        <input type="number" class="form-control" id="cli-tasa-${idx}" value="${TASA_ANUAL_DEFAULT}" step="0.01" oninput="onFilaLoteChange(${idx})">
       </div>
     </div>
     <div id="cli-fila-info-${idx}" style="display:none;background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:11px;margin-top:4px"></div>`;
@@ -3165,26 +3188,34 @@ function onFilaLoteChange(idx) {
   const tipo   = document.getElementById(`cli-tipo-${idx}`)?.value;
   const infoDiv = document.getElementById(`cli-fila-info-${idx}`);
   const reservaWrap = document.getElementById(`cli-reserva-wrap-${idx}`);
+  const mesesWrap = document.getElementById(`cli-meses-wrap-${idx}`);
 
   if (!loteId) { if(infoDiv) infoDiv.style.display = 'none'; return; }
 
   const l = getLote(loteId);
   const precioEl  = document.getElementById(`cli-precio-${idx}`);
   const reservaEl = document.getElementById(`cli-reserva-${idx}`);
+  const mesesEl   = document.getElementById(`cli-meses-${idx}`);
+  const tasaEl    = document.getElementById(`cli-tasa-${idx}`);
 
   if (!precioEl.value)  precioEl.value  = calcPrecioLote(l.area_m2, tipo);
   if (!reservaEl.value && tipo !== 'contado')
     reservaEl.value = l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA;
 
+  // Show/hide plazo fields
   if (reservaWrap) reservaWrap.style.display = tipo === 'contado' ? 'none' : '';
-  if (tipo === 'contado') reservaEl.value = 0;
+  if (mesesWrap)   mesesWrap.style.display   = tipo === 'contado' ? 'none' : '';
+  if (tipo === 'contado') { reservaEl.value = 0; }
 
   const valor    = parseFloat(precioEl.value) || calcPrecioLote(l.area_m2, tipo);
   const reserva  = tipo === 'contado' ? 0 : (parseFloat(reservaEl.value) || RESERVA_PEQUEÑA);
-  const tasa     = TASA_ANUAL_DEFAULT / 100;
+  const meses    = tipo === 'contado' ? 0 : (parseInt(mesesEl?.value) || 180);
+  const tasaPct  = parseFloat(tasaEl?.value) || TASA_ANUAL_DEFAULT;
+  const tasa     = tasaPct / 100;
   const financiar = tipo === 'contado' ? 0 : valor - reserva;
   const tm       = tasa / 12;
-  const cuota    = tipo === 'contado' ? 0 : Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
+  const cuota    = tipo === 'contado' ? 0 :
+    (meses > 0 ? Math.round(financiar * tm / (1 - Math.pow(1 + tm, -meses)) * 100) / 100 : 0);
 
   infoDiv.style.display = 'block';
   infoDiv.innerHTML = `
@@ -3192,7 +3223,7 @@ function onFilaLoteChange(idx) {
       <div><span style="color:var(--text-muted)">Área</span><br><strong>${l.area_m2} m²</strong></div>
       <div><span style="color:var(--text-muted)">${tipo==='contado'?'Total':'A financiar'}</span><br><strong>${fmt(tipo==='contado'?valor:financiar)}</strong></div>
       <div><span style="color:var(--text-muted)">${tipo==='contado'?'—':'Reserva'}</span><br><strong>${tipo==='contado'?'—':fmt(reserva)}</strong></div>
-      <div><span style="color:var(--text-muted)">${tipo==='contado'?'—':'Cuota/mes'}</span><br><strong>${tipo==='contado'?'—':fmt(cuota)}</strong></div>
+      <div><span style="color:var(--text-muted)">${tipo==='contado'?'—':'Cuota/mes'}</span><br><strong style="color:var(--accent)">${tipo==='contado'?'—':fmt(cuota)+' × '+meses+'m'}</strong></div>
     </div>`;
 }
 
@@ -3251,13 +3282,17 @@ function seleccionarClienteAsignar(id, nombre, codigo) {
 function onAsignarTipoChange() {
   const tipo = document.getElementById('asignar-tipo-venta').value;
   const l = getLote(_loteParaAsignar || '');
-  document.getElementById('asignar-plazo-fields').style.display = tipo === 'contado' ? 'none' : '';
-  if (tipo === 'contado') {
-    document.getElementById('asignar-precio').value = calcPrecioLote(l.area_m2 || 200, 'contado');
-  } else {
-    document.getElementById('asignar-precio').value = calcPrecioLote(l.area_m2 || 200, 'plazo');
+  const isContado = tipo === 'contado';
+  document.getElementById('asignar-plazo-fields').style.display = isContado ? 'none' : '';
+  document.getElementById('asignar-meses-wrap').style.display   = isContado ? 'none' : '';
+  if (!isContado) {
+    document.getElementById('asignar-precio').value  = calcPrecioLote(l.area_m2 || 200, 'plazo');
     document.getElementById('asignar-reserva').value = (l.area_m2 || 200) >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA;
-    document.getElementById('asignar-tasa').value = TASA_ANUAL_DEFAULT;
+    document.getElementById('asignar-tasa').value    = TASA_ANUAL_DEFAULT;
+    if (!document.getElementById('asignar-meses').value)
+      document.getElementById('asignar-meses').value = 180;
+  } else {
+    document.getElementById('asignar-precio').value = calcPrecioLote(l.area_m2 || 200, 'contado');
   }
   onAsignarPrecioChange();
 }
@@ -3267,10 +3302,12 @@ function onAsignarPrecioChange() {
   const valor   = parseFloat(document.getElementById('asignar-precio').value) || 0;
   const reserva = tipo === 'contado' ? 0 : (parseFloat(document.getElementById('asignar-reserva').value) || 0);
   const tasaPct = parseFloat(document.getElementById('asignar-tasa').value) || TASA_ANUAL_DEFAULT;
+  const meses   = tipo === 'contado' ? 0 : (parseInt(document.getElementById('asignar-meses')?.value) || 180);
   const tasa    = tasaPct / 100;
   const financiar = tipo === 'contado' ? 0 : valor - reserva;
   const tm      = tasa / 12;
-  const cuota   = tipo === 'contado' ? 0 : Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
+  const cuota   = tipo === 'contado' ? 0 :
+    (meses > 0 ? Math.round(financiar * tm / (1 - Math.pow(1 + tm, -meses)) * 100) / 100 : 0);
 
   const resumen = document.getElementById('asignar-resumen');
   if (valor > 0) {
@@ -3280,7 +3317,7 @@ function onAsignarPrecioChange() {
         <div><span style="color:var(--text-muted)">Valor</span><br><strong>${fmt(valor)}</strong></div>
         ${tipo==='contado' ? '' : `<div><span style="color:var(--text-muted)">Reserva</span><br><strong>${fmt(reserva)}</strong></div>`}
         ${tipo==='contado' ? '' : `<div><span style="color:var(--text-muted)">A financiar</span><br><strong>${fmt(financiar)}</strong></div>`}
-        ${tipo==='contado' ? '' : `<div><span style="color:var(--text-muted)">Cuota/mes</span><br><strong style="color:var(--accent)">${fmt(cuota)}</strong></div>`}
+        ${tipo==='contado' ? '' : `<div><span style="color:var(--text-muted)">Cuota/mes × ${meses}</span><br><strong style="color:var(--accent)">${fmt(cuota)}</strong></div>`}
       </div>`;
   } else {
     resumen.style.display = 'none';
@@ -3297,11 +3334,12 @@ async function confirmarAsignarPropietario() {
   const valor   = parseFloat(document.getElementById('asignar-precio').value) || calcPrecioLote(l.area_m2, tipo);
   const reserva = tipo === 'contado' ? 0 : (parseFloat(document.getElementById('asignar-reserva').value) || RESERVA_PEQUEÑA);
   const tasaPct = parseFloat(document.getElementById('asignar-tasa').value) || TASA_ANUAL_DEFAULT;
+  const meses   = tipo === 'contado' ? 0 : (parseInt(document.getElementById('asignar-meses')?.value) || 180);
   const tasa    = tasaPct / 100;
   const financiar = tipo === 'contado' ? 0 : valor - reserva;
   const tm      = tasa / 12;
-  const meses   = tipo === 'contado' ? 0 : 180;
-  const cuota   = tipo === 'contado' ? 0 : Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
+  const cuota   = tipo === 'contado' ? 0 :
+    (meses > 0 ? Math.round(financiar * tm / (1 - Math.pow(1 + tm, -meses)) * 100) / 100 : 0);
   const estadoPlano = tipo === 'contado' ? 'Vendido Contado' : 'Vendido a Plazo';
 
   // Update local array
@@ -4646,31 +4684,26 @@ async function fixEstadosFirestore() {
   if (!db) return;
   const { collection, doc, setDoc, getDocs } = window._fbFns;
 
-  // Only correct lotes that are in datosFinancieros with a propietario_id
-  // but have a wrong estado in Firestore.
-  // NEVER revert lotes that have propietario_id in Firestore (they were intentionally sold).
-  const seedEstados = {};
-  catalogoLotes.forEach(cl => { seedEstados[cl.id] = cl.estado_plano; });
+  // Source of truth: catalogoLotes seed estado_plano for these specific lotes
+  const correctEstados = {};
+  catalogoLotes.forEach(cl => {
+    // Only enforce for lotes NOT in datosFinancieros (no propietario)
+    // OR lotes where catalogoLotes has a definitive non-sold state
+    if (!datosFinancieros[cl.id] || !datosFinancieros[cl.id].propietario_id) {
+      correctEstados[cl.id] = cl.estado_plano;
+    }
+  });
 
   try {
     const snap = await getDocs(collection(db, 'lotes'));
     for (const d of snap.docs) {
       const fl = d.data();
       const loteId = fl.id || d.id;
-
-      // If Firestore says this lote has an owner → NEVER touch its estado
-      if (fl.propietario_id) continue;
-
-      // If lote has no owner in Firestore but seed says it's Disponible/Pendiente
-      // and Firestore has a wrong "Vendido" state → fix it
-      const seedEstado = seedEstados[loteId];
-      const dfProp = datosFinancieros[loteId]?.propietario_id;
-      if (!dfProp && seedEstado && fl.estado_plano &&
-          fl.estado_plano !== seedEstado &&
-          ['Vendido Contado','Vendido a Plazo'].includes(fl.estado_plano)) {
-        console.log(`Fixing ${loteId}: "${fl.estado_plano}" → "${seedEstado}"`);
+      const correct = correctEstados[loteId];
+      if (correct && fl.estado_plano && fl.estado_plano !== correct) {
+        console.log(`Fixing ${loteId}: ${fl.estado_plano} → ${correct}`);
         await setDoc(doc(collection(db, 'lotes'), d.id),
-          { estado_plano: seedEstado }, { merge: true });
+          { estado_plano: correct }, { merge: true });
       }
     }
   } catch(e) { console.warn('fixEstadosFirestore:', e); }
@@ -4780,11 +4813,13 @@ window.guardarCliente = async function() {
     const l        = getLote(loteId);
     const valor    = parseFloat(document.getElementById(`cli-precio-${idx}`)?.value) || calcPrecioLote(l.area_m2, tipo);
     const reserva  = tipo === 'contado' ? 0 : (parseFloat(document.getElementById(`cli-reserva-${idx}`)?.value) || RESERVA_PEQUEÑA);
-    const tasa     = TASA_ANUAL_DEFAULT / 100;
+    const tasaPct  = parseFloat(document.getElementById(`cli-tasa-${idx}`)?.value) || TASA_ANUAL_DEFAULT;
+    const tasa     = tasaPct / 100;
+    const meses    = tipo === 'contado' ? 0 : (parseInt(document.getElementById(`cli-meses-${idx}`)?.value) || 180);
     const financiar = tipo === 'contado' ? 0 : valor - reserva;
     const tm       = tasa / 12;
-    const meses    = tipo === 'contado' ? 0 : 180;
-    const cuota    = tipo === 'contado' ? 0 : Math.round(financiar * tm / (1 - Math.pow(1 + tm, -180)) / 5) * 5;
+    const cuota    = tipo === 'contado' ? 0 :
+      (meses > 0 ? Math.round(financiar * tm / (1 - Math.pow(1 + tm, -meses)) * 100) / 100 : 0);
     const estadoPlano = tipo === 'contado' ? 'Vendido Contado' : 'Vendido a Plazo';
 
     // Update local lotes array
@@ -4987,6 +5022,12 @@ window.guardarEdicionPerfil = async function(cid) {
         <div class="form-group">
           <label class="form-label">Tasa de interés anual (%)</label>
           <input type="number" class="form-control" id="asignar-tasa" placeholder="10.5" step="0.01" oninput="onAsignarPrecioChange()">
+        </div>
+      </div>
+      <div class="form-grid" id="asignar-meses-wrap">
+        <div class="form-group">
+          <label class="form-label">Plazo (meses)</label>
+          <input type="number" class="form-control" id="asignar-meses" value="180" min="1" max="360" step="1" oninput="onAsignarPrecioChange()">
         </div>
       </div>
       <div id="asignar-resumen" style="display:none;background:var(--surface2);border-radius:6px;padding:10px 14px;font-size:12px;margin-top:8px"></div>
