@@ -3263,10 +3263,7 @@ let _loteParaAsignar = null;
 function abrirAsignarPropietario(loteId) {
   _loteParaAsignar = loteId;
   const l = getLote(loteId);
-  // Clear any selector left from abrirAsignarLoteDesdePerfilCliente, restore plain text
-  const loteIdEl = document.getElementById('asignar-lote-id');
-  loteIdEl.innerHTML = '';
-  loteIdEl.textContent = `${loteId} — ${l.area_m2} m²`;
+  document.getElementById('asignar-lote-id').textContent = `${loteId} — ${l.area_m2} m²`;
   document.getElementById('asignar-cliente-search').value = '';
   document.getElementById('asignar-cliente-id').value = '';
   document.getElementById('asignar-cliente-seleccionado').style.display = 'none';
@@ -3920,69 +3917,15 @@ function verPerfilCliente(cid) {
     html += `<div style="padding:40px;text-align:center;color:var(--text-muted);font-size:13px">Este cliente no tiene lotes asignados.</div>`;
   }
 
-  html += `<div style="padding:14px 20px;background:var(--surface2);border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+  html += `<div style="padding:14px 20px;background:var(--surface2);border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
     <button class="btn btn-secondary btn-sm" onclick="printPerfilCliente(${cid})">📄 Descargar PDF</button>
     <button class="btn btn-amber btn-sm" onclick="editarPerfilCliente(${cid})">✏ Editar perfil</button>
-    <button class="btn btn-primary btn-sm" onclick="abrirAsignarLoteDesdePerfilCliente(${cid})">＋ Asignar Lote</button>
     <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-perfil-cliente')">Cerrar</button>
   </div>`;
 
   document.getElementById('perfil-body').innerHTML = html;
   _perfilActivoCid = cid;
   openModal('modal-perfil-cliente');
-}
-
-function abrirAsignarLoteDesdePerfilCliente(cid) {
-  const c = getCliente(cid);
-  if (!c) return;
-  const disponibles = lotes.filter(l => l.estado_plano === 'Disponible');
-  if (!disponibles.length) { alert('No hay lotes disponibles para asignar.'); return; }
-
-  closeModal('modal-perfil-cliente');
-
-  // Set first available lot as default
-  _loteParaAsignar = disponibles[0].id;
-  const l = disponibles[0];
-
-  // Build lot selector inside the label element
-  const loteIdEl = document.getElementById('asignar-lote-id');
-  loteIdEl.innerHTML = `<select class="form-control" id="asignar-lote-selector"
-    onchange="onAsignarLoteSelectorChange()"
-    style="font-weight:700;color:var(--accent);max-width:280px;display:inline-block">
-    ${disponibles.map(dl => `<option value="${dl.id}">${dl.id} — ${dl.area_m2} m²</option>`).join('')}
-  </select>`;
-
-  // Pre-fill client
-  document.getElementById('asignar-cliente-search').value = c.nombre;
-  document.getElementById('asignar-cliente-id').value = cid;
-  const sel = document.getElementById('asignar-cliente-seleccionado');
-  sel.style.display = 'block';
-  sel.textContent = `✓ ${c.nombre} (${c.codigo})`;
-  document.getElementById('asignar-dropdown').style.display = 'none';
-
-  // Set defaults
-  document.getElementById('asignar-tipo-venta').value = 'plazo';
-  document.getElementById('asignar-precio').value = calcPrecioLote(l.area_m2, 'plazo');
-  document.getElementById('asignar-reserva').value = l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA;
-  document.getElementById('asignar-tasa').value = TASA_ANUAL_DEFAULT;
-  document.getElementById('asignar-plazo-fields').style.display = '';
-  document.getElementById('asignar-meses-wrap').style.display = '';
-  const mesesEl = document.getElementById('asignar-meses');
-  if (mesesEl && !mesesEl.value) mesesEl.value = 180;
-
-  onAsignarPrecioChange();
-  openModal('modal-asignar-propietario');
-}
-
-function onAsignarLoteSelectorChange() {
-  const sel = document.getElementById('asignar-lote-selector');
-  if (!sel) return;
-  _loteParaAsignar = sel.value;
-  const l = getLote(_loteParaAsignar);
-  const tipo = document.getElementById('asignar-tipo-venta').value;
-  document.getElementById('asignar-precio').value = calcPrecioLote(l.area_m2, tipo);
-  document.getElementById('asignar-reserva').value = l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA;
-  onAsignarPrecioChange();
 }
 
 function previewDuiFoto(input, previewId, field, cid) {
@@ -4157,6 +4100,51 @@ function editarPerfilCliente(cid) {
       </div>
     </div>
 
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:20px">
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px">Lotes asignados</div>
+      ${(() => {
+        const misLotes = lotes.filter(l => l.propietario_id === cid);
+        if (!misLotes.length) return '<div style="font-size:12px;color:var(--text-muted)">No tiene lotes asignados.</div>';
+        return misLotes.map(l => `
+          <div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;background:var(--surface2)" id="edit-lote-bloque-${l.id}">
+            <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:10px">Lote ${l.id} — ${l.area_m2} m²</div>
+            <div class="form-grid" style="margin-bottom:8px">
+              <div class="form-group" style="margin-bottom:0">
+                <label class="form-label">Tipo de venta</label>
+                <select class="form-control" id="edit-lote-tipo-${l.id}" onchange="onEditLoteTipoChange('${l.id}')">
+                  <option value="plazo"   ${(l.meses||0)>0?'selected':''}>A Plazo</option>
+                  <option value="contado" ${(l.meses||0)===0?'selected':''}>Contado</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:0">
+                <label class="form-label">Precio del lote ($)</label>
+                <input type="number" class="form-control" id="edit-lote-precio-${l.id}" value="${l.valor||0}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
+              </div>
+            </div>
+            <div class="form-grid" id="edit-lote-plazo-fields-${l.id}" style="margin-bottom:8px;${(l.meses||0)===0?'display:none':''}">
+              <div class="form-group" style="margin-bottom:0">
+                <label class="form-label">Prima / Reserva ($)</label>
+                <input type="number" class="form-control" id="edit-lote-reserva-${l.id}" value="${l.reserva||0}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
+              </div>
+              <div class="form-group" style="margin-bottom:0">
+                <label class="form-label">Plazo (meses)</label>
+                <input type="number" class="form-control" id="edit-lote-meses-${l.id}" value="${l.meses||180}" min="1" max="360" oninput="onEditLotePrecioChange('${l.id}')">
+              </div>
+            </div>
+            <div class="form-grid" id="edit-lote-plazo-fields2-${l.id}" style="${(l.meses||0)===0?'display:none':''}">
+              <div class="form-group" style="margin-bottom:0">
+                <label class="form-label">Tasa anual (%)</label>
+                <input type="number" class="form-control" id="edit-lote-tasa-${l.id}" value="${((l.tasa||0.105)*100).toFixed(2)}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
+              </div>
+              <div style="background:var(--accent-pale);border-radius:6px;padding:8px 12px;font-size:12px;display:flex;align-items:center">
+                <span style="color:var(--text-muted)">Cuota calc.:&nbsp;</span>
+                <strong id="edit-lote-cuota-preview-${l.id}" style="color:var(--accent)">${l.cuota>0?'$'+l.cuota.toFixed(2)+'/mes':'—'}</strong>
+              </div>
+            </div>
+          </div>`).join('');
+      })()}
+    </div>
+
     <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:18px;border-top:1px solid var(--border)">
       <button class="btn btn-secondary btn-sm" id="btn-cancel-edit">✕ Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="guardarEdicionPerfil(${cid})">💾 Guardar cambios</button>
@@ -4164,6 +4152,32 @@ function editarPerfilCliente(cid) {
   </div>`;
 
   document.getElementById('btn-cancel-edit').onclick = () => { body.innerHTML = prev; };
+}
+
+function onEditLoteTipoChange(loteId) {
+  const tipo = document.getElementById(`edit-lote-tipo-${loteId}`)?.value;
+  const plazo1 = document.getElementById(`edit-lote-plazo-fields-${loteId}`);
+  const plazo2 = document.getElementById(`edit-lote-plazo-fields2-${loteId}`);
+  const isContado = tipo === 'contado';
+  if (plazo1) plazo1.style.display = isContado ? 'none' : '';
+  if (plazo2) plazo2.style.display = isContado ? 'none' : '';
+  onEditLotePrecioChange(loteId);
+}
+
+function onEditLotePrecioChange(loteId) {
+  const tipo    = document.getElementById(`edit-lote-tipo-${loteId}`)?.value;
+  const valor   = parseFloat(document.getElementById(`edit-lote-precio-${loteId}`)?.value) || 0;
+  const reserva = parseFloat(document.getElementById(`edit-lote-reserva-${loteId}`)?.value) || 0;
+  const meses   = parseInt(document.getElementById(`edit-lote-meses-${loteId}`)?.value) || 180;
+  const tasaPct = parseFloat(document.getElementById(`edit-lote-tasa-${loteId}`)?.value) || 10.5;
+  const preview = document.getElementById(`edit-lote-cuota-preview-${loteId}`);
+  if (!preview || tipo === 'contado') return;
+  const financiar = valor - reserva;
+  const tm = (tasaPct / 100) / 12;
+  const cuota = meses > 0 && tm > 0
+    ? Math.round(financiar * tm / (1 - Math.pow(1 + tm, -meses)) * 100) / 100
+    : 0;
+  preview.textContent = cuota > 0 ? `$${cuota.toFixed(2)}/mes` : '—';
 }
 
 function guardarEdicionPerfil(cid) {
@@ -4768,13 +4782,12 @@ async function fixEstadosFirestore() {
   if (!db) return;
   const { collection, doc, setDoc, getDocs } = window._fbFns;
 
-  // Only enforce catalogoLotes estado for lotes that have a hardcoded propietario
-  // in datosFinancieros. NEVER touch lotes where Firestore says propietario_id exists
-  // (those were sold via the app and Firestore is the source of truth for them).
+  // Source of truth: catalogoLotes seed estado_plano for these specific lotes
   const correctEstados = {};
   catalogoLotes.forEach(cl => {
-    const df = datosFinancieros[cl.id];
-    if (df && df.propietario_id) {
+    // Only enforce for lotes NOT in datosFinancieros (no propietario)
+    // OR lotes where catalogoLotes has a definitive non-sold state
+    if (!datosFinancieros[cl.id] || !datosFinancieros[cl.id].propietario_id) {
       correctEstados[cl.id] = cl.estado_plano;
     }
   });
@@ -4784,8 +4797,6 @@ async function fixEstadosFirestore() {
     for (const d of snap.docs) {
       const fl = d.data();
       const loteId = fl.id || d.id;
-      // If Firestore already has a propietario_id, never reset the estado
-      if (fl.propietario_id) continue;
       const correct = correctEstados[loteId];
       if (correct && fl.estado_plano && fl.estado_plano !== correct) {
         console.log(`Fixing ${loteId}: ${fl.estado_plano} → ${correct}`);
@@ -4995,6 +5006,45 @@ window.guardarEdicionPerfil = async function(cid) {
     await setDoc(ref, updated, { merge: true });
   }
 
+  // ── Save lote changes ──
+  const misLotes = lotes.filter(l => l.propietario_id === cid);
+  for (const loteInfo of misLotes) {
+    const loteId = loteInfo.id;
+    const tipoEl   = document.getElementById(`edit-lote-tipo-${loteId}`);
+    const precioEl = document.getElementById(`edit-lote-precio-${loteId}`);
+    if (!tipoEl || !precioEl) continue; // lote section not rendered (shouldn't happen)
+
+    const tipo     = tipoEl.value;
+    const valor    = parseFloat(precioEl.value) || 0;
+    const reserva  = tipo === 'contado' ? 0 : (parseFloat(document.getElementById(`edit-lote-reserva-${loteId}`)?.value) || 0);
+    const meses    = tipo === 'contado' ? 0 : (parseInt(document.getElementById(`edit-lote-meses-${loteId}`)?.value) || 180);
+    const tasaPct  = tipo === 'contado' ? 0 : (parseFloat(document.getElementById(`edit-lote-tasa-${loteId}`)?.value) || 10.5);
+    const tasa     = tasaPct / 100;
+    const financiar = tipo === 'contado' ? 0 : valor - reserva;
+    const tm       = tasa / 12;
+    const cuota    = tipo === 'contado' ? 0 :
+      (meses > 0 && tm > 0 ? Math.round(financiar * tm / (1 - Math.pow(1 + tm, -meses)) * 100) / 100 : 0);
+    const estadoPlano = tipo === 'contado' ? 'Vendido Contado' : 'Vendido a Plazo';
+
+    // Update local array
+    const loteIdx = lotes.findIndex(x => x.id === loteId);
+    if (loteIdx >= 0) {
+      lotes[loteIdx].valor       = valor;
+      lotes[loteIdx].reserva     = reserva;
+      lotes[loteIdx].financiar   = financiar;
+      lotes[loteIdx].tasa        = tasa;
+      lotes[loteIdx].meses       = meses;
+      lotes[loteIdx].cuota       = cuota;
+      lotes[loteIdx].estado_plano = estadoPlano;
+    }
+
+    // Save to Firestore
+    const loteDocId = loteInfo._docId || loteId;
+    const loteRef = doc(collection(db, 'lotes'), loteDocId);
+    await setDoc(loteRef, { id: loteId, propietario_id: cid, estado_plano: estadoPlano, valor, reserva, financiar, tasa, meses, cuota }, { merge: true });
+  }
+
+  clientes[idx] = { ...updated, _docId: docId };
   renderDashboard();
   verPerfilCliente(cid);
 };
