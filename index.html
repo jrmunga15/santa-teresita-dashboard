@@ -1014,7 +1014,10 @@
       <div class="card" style="max-width:700px;margin:0 auto">
         <div class="card-header">
           <span class="card-title">Generar Cotización</span>
-          <button class="btn btn-primary btn-sm" onclick="imprimirCotizacion()">🖨 Imprimir cotización</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="limpiarCotizacion()">🗑 Limpiar</button>
+            <button class="btn btn-primary btn-sm" onclick="imprimirCotizacion()">🖨 Imprimir cotización</button>
+          </div>
         </div>
         <div class="modal-body" style="padding:24px">
           <div class="form-grid">
@@ -1700,9 +1703,19 @@ function renderPage(page) {
 // ═══════════════════════════════════════════════
 function initCotizaciones() {
   const sel = document.getElementById('cot-lote');
+  // Show all lotes — disponibles first, then others (for reference/quoting)
+  const disponibles = lotes.filter(l => l.estado_plano === 'Disponible');
+  const otros = lotes.filter(l => l.estado_plano !== 'Disponible');
   sel.innerHTML = '<option value="">— Seleccionar lote —</option>' +
-    lotes.filter(l => l.estado_plano === 'Disponible')
-      .map(l => `<option value="${l.id}">${l.id} — ${l.area_m2} m²</option>`).join('');
+    '<optgroup label="Disponibles">' +
+    disponibles.map(l => `<option value="${l.id}">${l.id} — ${l.area_m2} m²</option>`).join('') +
+    '</optgroup>' +
+    '<optgroup label="Vendidos / Reservados">' +
+    otros.map(l => {
+      const c = l.propietario_id ? getCliente(l.propietario_id) : null;
+      return `<option value="${l.id}">${l.id} — ${l.estado_plano}${c ? ' (' + c.nombre.split(' ')[0] + ')' : ''}</option>`;
+    }).join('') +
+    '</optgroup>';
   document.getElementById('cot-preview').innerHTML = '';
 }
 
@@ -1862,6 +1875,20 @@ function renderCotizacion() {
         <div><span style="color:#7a1a1a">Retorno sobre precio:</span> <strong style="color:var(--red)">${((totalPlazo/valor - 1)*100).toFixed(1)}% adicional</strong></div>
       </div>
     </div>` : ''}`;
+}
+
+function limpiarCotizacion() {
+  document.getElementById('cot-nombre').value = '';
+  document.getElementById('cot-lote').value = '';
+  document.getElementById('cot-tipo').value = 'plazo';
+  document.getElementById('cot-precio').value = '';
+  document.getElementById('cot-precio-m2').value = '';
+  document.getElementById('cot-precio-v2').value = '';
+  document.getElementById('cot-reserva').value = '';
+  document.getElementById('cot-tasa').value = '';
+  document.getElementById('cot-meses').value = 180;
+  document.getElementById('cot-meses-wrap').style.display = '';
+  document.getElementById('cot-preview').innerHTML = '';
 }
 
 function imprimirCotizacion() {
@@ -2597,7 +2624,7 @@ function buildReciboCopy(p, c, loteInfo, esCopia = false) {
         <div class="rc-cell lbl">TÉRMINOS</div>
         <div class="rc-cell" style="font-size:10px;">DUI / Pasaporte: <strong>${c.dui||'—'}</strong></div>
         <div class="rc-cell val" style="font-size:12px;font-weight:700;color:#2d6a4f">${c.codigo||'—'}</div>
-        <div class="rc-cell val" style="font-size:11px">${loteInfo && loteInfo.meses > 0 ? 'Crédito a 15 años' : 'Contado'}</div>
+        <div class="rc-cell val" style="font-size:11px">${loteInfo && loteInfo.meses > 0 ? 'Crédito a ' + loteInfo.meses + ' meses' : 'Contado'}</div>
       </div>
       <div class="rc-grid-top" style="border-top:none;">
         <div class="rc-cell" style="grid-column:1/3;border-right:none"></div>
