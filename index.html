@@ -1071,6 +1071,18 @@
               <input type="number" class="form-control" id="cot-tasa" placeholder="10.5" step="0.01" oninput="renderCotizacion()">
             </div>
           </div>
+          <div id="cot-modo-wrap" style="display:none;margin-top:4px">
+            <div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:12px">
+              <button id="cot-modo-btn-cuota" onclick="setCotModo('cuota')" style="flex:1;padding:7px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;background:var(--accent);color:#fff">Calcular cuota</button>
+              <button id="cot-modo-btn-prima" onclick="setCotModo('prima')" style="flex:1;padding:7px;border:none;border-left:1px solid var(--border);cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;background:var(--surface2);color:var(--text-muted)">Calcular prima desde cuota</button>
+            </div>
+          </div>
+          <div id="cot-cuota-deseada-wrap" style="display:none;margin-top:10px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Cuota mensual deseada ($)</label>
+              <input type="number" class="form-control" id="cot-cuota-deseada" placeholder="1433.00" step="0.01" oninput="renderCotizacion()">
+            </div>
+          </div>
         </div>
         <div id="cot-preview" style="padding:0 24px 24px"></div>
       </div>
@@ -1730,11 +1742,14 @@ function onCotLoteChange() {
   document.getElementById('cot-precio-v2').value = l.area_v2  > 0 ? (precio / l.area_v2).toFixed(2)  : '';
   document.getElementById('cot-reserva').value   = tipo === 'contado' ? 0 : (l.area_m2 >= 230 ? RESERVA_GRANDE : RESERVA_PEQUEÑA);
   document.getElementById('cot-tasa').value      = TASA_ANUAL_DEFAULT;
-  // Show/hide meses field
+  // Show/hide meses field and modo toggle
   const mesesWrap = document.getElementById('cot-meses-wrap');
   if (mesesWrap) mesesWrap.style.display = tipo === 'contado' ? 'none' : '';
   if (tipo === 'plazo' && !document.getElementById('cot-meses').value)
     document.getElementById('cot-meses').value = 180;
+  const modoWrap = document.getElementById('cot-modo-wrap');
+  if (modoWrap) modoWrap.style.display = tipo === 'contado' ? 'none' : '';
+  if (tipo === 'contado') setCotModo('cuota');
   renderCotizacion();
 }
 
@@ -1777,11 +1792,47 @@ function onCotV2Change() {
   renderCotizacion();
 }
 
+let _cotModo = 'cuota';
+
+function setCotModo(modo) {
+  _cotModo = modo;
+  const cuotaWrap  = document.getElementById('cot-cuota-deseada-wrap');
+  const reservaEl  = document.getElementById('cot-reserva');
+  const btnCuota   = document.getElementById('cot-modo-btn-cuota');
+  const btnPrima   = document.getElementById('cot-modo-btn-prima');
+  const isPrima    = modo === 'prima';
+  if (cuotaWrap) cuotaWrap.style.display = isPrima ? '' : 'none';
+  if (reservaEl) {
+    reservaEl.readOnly = isPrima;
+    reservaEl.style.background = isPrima ? 'var(--surface2)' : '';
+  }
+  if (btnCuota) { btnCuota.style.background = isPrima ? 'var(--surface2)' : 'var(--accent)'; btnCuota.style.color = isPrima ? 'var(--text-muted)' : '#fff'; }
+  if (btnPrima) { btnPrima.style.background = isPrima ? 'var(--accent)' : 'var(--surface2)'; btnPrima.style.color = isPrima ? '#fff' : 'var(--text-muted)'; }
+  renderCotizacion();
+}
+
 function renderCotizacion() {
   const loteId  = document.getElementById('cot-lote').value;
   const tipo    = document.getElementById('cot-tipo').value;
   const nombre  = document.getElementById('cot-nombre').value || 'Cliente';
   const valor   = parseFloat(document.getElementById('cot-precio').value)  || 0;
+
+  // Modo "calcular prima": derivar reserva a partir de la cuota deseada
+  if (_cotModo === 'prima' && tipo === 'plazo' && valor > 0) {
+    const cuotaDeseada = parseFloat(document.getElementById('cot-cuota-deseada')?.value) || 0;
+    const tasaPct = parseFloat(document.getElementById('cot-tasa')?.value) || TASA_ANUAL_DEFAULT;
+    const meses   = parseInt(document.getElementById('cot-meses')?.value) || 180;
+    if (cuotaDeseada > 0 && meses > 0) {
+      const tm = (tasaPct / 100) / 12;
+      const financiar = tm > 0
+        ? Math.round(cuotaDeseada * (1 - Math.pow(1 + tm, -meses)) / tm * 100) / 100
+        : cuotaDeseada * meses;
+      const reservaCalc = Math.max(0, Math.round((valor - financiar) * 100) / 100);
+      const reservaEl = document.getElementById('cot-reserva');
+      if (reservaEl) reservaEl.value = reservaCalc.toFixed(2);
+    }
+  }
+
   const reserva = tipo === 'contado' ? 0 : (parseFloat(document.getElementById('cot-reserva').value) || 0);
   const tasaPct = parseFloat(document.getElementById('cot-tasa').value)    || TASA_ANUAL_DEFAULT;
   const meses   = tipo === 'contado' ? 0 : (parseInt(document.getElementById('cot-meses')?.value) || 180);
@@ -1888,6 +1939,11 @@ function limpiarCotizacion() {
   document.getElementById('cot-tasa').value = '';
   document.getElementById('cot-meses').value = 180;
   document.getElementById('cot-meses-wrap').style.display = '';
+  const cuotaDeseadaEl = document.getElementById('cot-cuota-deseada');
+  if (cuotaDeseadaEl) cuotaDeseadaEl.value = '';
+  const modoWrap = document.getElementById('cot-modo-wrap');
+  if (modoWrap) modoWrap.style.display = 'none';
+  setCotModo('cuota');
   document.getElementById('cot-preview').innerHTML = '';
 }
 
