@@ -4102,9 +4102,10 @@ function editarPerfilCliente(cid) {
 
     <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:20px">
       <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px">Lotes asignados</div>
+      <div id="lotes-asignados-container-${cid}">
       ${(() => {
         const misLotes = lotes.filter(l => l.propietario_id === cid);
-        if (!misLotes.length) return '<div style="font-size:12px;color:var(--text-muted)">No tiene lotes asignados.</div>';
+        if (!misLotes.length) return `<div id="sin-lotes-msg-${cid}" style="font-size:12px;color:var(--text-muted);margin-bottom:10px">No tiene lotes asignados.</div>`;
         return misLotes.map(l => `
           <div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;background:var(--surface2)" id="edit-lote-bloque-${l.id}">
             <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:10px">Lote ${l.id} — ${l.area_m2} m²</div>
@@ -4143,6 +4144,9 @@ function editarPerfilCliente(cid) {
             </div>
           </div>`).join('');
       })()}
+      </div>
+      <div id="nuevo-lote-form-${cid}" style="display:none;border:1px dashed var(--border);border-radius:8px;padding:14px;margin-bottom:10px;background:var(--surface2)"></div>
+      <button class="btn btn-secondary btn-sm" id="btn-agregar-lote-${cid}" onclick="mostrarFormNuevoLote(${cid})" style="margin-top:4px">+ Agregar lote</button>
     </div>
 
     <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:18px;border-top:1px solid var(--border)">
@@ -4152,6 +4156,192 @@ function editarPerfilCliente(cid) {
   </div>`;
 
   document.getElementById('btn-cancel-edit').onclick = () => { body.innerHTML = prev; };
+}
+
+function mostrarFormNuevoLote(cid) {
+  const disponibles = lotes.filter(l => l.estado_plano === 'Disponible');
+  if (!disponibles.length) {
+    alert('No hay lotes disponibles para asignar.');
+    return;
+  }
+
+  const formDiv = document.getElementById(`nuevo-lote-form-${cid}`);
+  const btn     = document.getElementById(`btn-agregar-lote-${cid}`);
+  if (!formDiv) return;
+
+  formDiv.style.display = 'block';
+  btn.style.display = 'none';
+
+  formDiv.innerHTML = `
+    <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:12px">Nuevo lote</div>
+    <div class="form-grid" style="margin-bottom:8px">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Lote disponible</label>
+        <select class="form-control" id="nuevo-lote-select-${cid}">
+          <option value="">— Seleccionar —</option>
+          ${disponibles.map(l => `<option value="${l.id}">${l.id} — ${l.area_m2} m²</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Tipo de venta</label>
+        <select class="form-control" id="nuevo-lote-tipo-${cid}" onchange="onNuevoLoteTipoChange(${cid})">
+          <option value="plazo">A Plazo</option>
+          <option value="contado">Contado</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-bottom:8px">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Precio del lote ($)</label>
+        <input type="number" class="form-control" id="nuevo-lote-precio-${cid}" value="0" step="0.01" oninput="onNuevoLotePrecioChange(${cid})">
+      </div>
+      <div class="form-group" style="margin-bottom:0" id="nuevo-lote-reserva-group-${cid}">
+        <label class="form-label">Prima / Reserva ($)</label>
+        <input type="number" class="form-control" id="nuevo-lote-reserva-${cid}" value="0" step="0.01" oninput="onNuevoLotePrecioChange(${cid})">
+      </div>
+    </div>
+    <div class="form-grid" id="nuevo-lote-plazo-fields-${cid}" style="margin-bottom:8px">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Plazo (meses)</label>
+        <input type="number" class="form-control" id="nuevo-lote-meses-${cid}" value="180" min="1" max="360" oninput="onNuevoLotePrecioChange(${cid})">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Tasa anual (%)</label>
+        <input type="number" class="form-control" id="nuevo-lote-tasa-${cid}" value="10.50" step="0.01" oninput="onNuevoLotePrecioChange(${cid})">
+      </div>
+    </div>
+    <div style="background:var(--accent-pale);border-radius:6px;padding:8px 12px;font-size:12px;display:flex;align-items:center;margin-bottom:12px" id="nuevo-lote-cuota-row-${cid}">
+      <span style="color:var(--text-muted)">Cuota calc.:&nbsp;</span>
+      <strong id="nuevo-lote-cuota-preview-${cid}" style="color:var(--accent)">—</strong>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary btn-sm" onclick="cancelarFormNuevoLote(${cid})">✕ Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmarNuevoLote(${cid})">✓ Confirmar lote</button>
+    </div>`;
+}
+
+function cancelarFormNuevoLote(cid) {
+  const formDiv = document.getElementById(`nuevo-lote-form-${cid}`);
+  const btn     = document.getElementById(`btn-agregar-lote-${cid}`);
+  if (formDiv) { formDiv.style.display = 'none'; formDiv.innerHTML = ''; }
+  if (btn) btn.style.display = '';
+}
+
+function onNuevoLoteTipoChange(cid) {
+  const tipo      = document.getElementById(`nuevo-lote-tipo-${cid}`)?.value;
+  const plazoDiv  = document.getElementById(`nuevo-lote-plazo-fields-${cid}`);
+  const reservaGr = document.getElementById(`nuevo-lote-reserva-group-${cid}`);
+  const cuotaRow  = document.getElementById(`nuevo-lote-cuota-row-${cid}`);
+  const isContado = tipo === 'contado';
+  if (plazoDiv)  plazoDiv.style.display  = isContado ? 'none' : '';
+  if (reservaGr) reservaGr.style.display = isContado ? 'none' : '';
+  if (cuotaRow)  cuotaRow.style.display  = isContado ? 'none' : '';
+  onNuevoLotePrecioChange(cid);
+}
+
+function onNuevoLotePrecioChange(cid) {
+  const tipo    = document.getElementById(`nuevo-lote-tipo-${cid}`)?.value;
+  const valor   = parseFloat(document.getElementById(`nuevo-lote-precio-${cid}`)?.value) || 0;
+  const reserva = parseFloat(document.getElementById(`nuevo-lote-reserva-${cid}`)?.value) || 0;
+  const meses   = parseInt(document.getElementById(`nuevo-lote-meses-${cid}`)?.value) || 180;
+  const tasaPct = parseFloat(document.getElementById(`nuevo-lote-tasa-${cid}`)?.value) || 10.5;
+  const preview = document.getElementById(`nuevo-lote-cuota-preview-${cid}`);
+  if (!preview || tipo === 'contado') return;
+  const financiar = valor - reserva;
+  const tm = (tasaPct / 100) / 12;
+  const cuota = meses > 0 && tm > 0
+    ? Math.round(financiar * tm / (1 - Math.pow(1 + tm, -meses)) * 100) / 100
+    : 0;
+  preview.textContent = cuota > 0 ? `$${cuota.toFixed(2)}/mes` : '—';
+}
+
+async function confirmarNuevoLote(cid) {
+  const loteId  = document.getElementById(`nuevo-lote-select-${cid}`)?.value;
+  if (!loteId) { alert('Selecciona un lote.'); return; }
+
+  const tipo     = document.getElementById(`nuevo-lote-tipo-${cid}`)?.value;
+  const valor    = parseFloat(document.getElementById(`nuevo-lote-precio-${cid}`)?.value) || 0;
+  const reserva  = tipo === 'contado' ? 0 : (parseFloat(document.getElementById(`nuevo-lote-reserva-${cid}`)?.value) || 0);
+  const meses    = tipo === 'contado' ? 0 : (parseInt(document.getElementById(`nuevo-lote-meses-${cid}`)?.value) || 180);
+  const tasaPct  = tipo === 'contado' ? 0 : (parseFloat(document.getElementById(`nuevo-lote-tasa-${cid}`)?.value) || 10.5);
+  const tasa     = tasaPct / 100;
+  const financiar = tipo === 'contado' ? 0 : valor - reserva;
+  const tm       = tasa / 12;
+  const cuota    = tipo === 'contado' ? 0
+    : (meses > 0 && tm > 0 ? Math.round(financiar * tm / (1 - Math.pow(1 + tm, -meses)) * 100) / 100 : 0);
+  const estadoPlano = tipo === 'contado' ? 'Vendido Contado' : 'Vendido a Plazo';
+
+  const loteIdx = lotes.findIndex(l => l.id === loteId);
+  if (loteIdx < 0) return;
+
+  // Update local array
+  lotes[loteIdx].propietario_id = cid;
+  lotes[loteIdx].estado_plano   = estadoPlano;
+  lotes[loteIdx].valor          = valor;
+  lotes[loteIdx].reserva        = reserva;
+  lotes[loteIdx].financiar      = financiar;
+  lotes[loteIdx].tasa           = tasa;
+  lotes[loteIdx].meses          = meses;
+  lotes[loteIdx].cuota          = cuota;
+
+  // Save to Firestore
+  if (window._db && window._fbFns) {
+    const { collection, doc, setDoc } = window._fbFns;
+    const db = window._db;
+    const docId = lotes[loteIdx]._docId || loteId;
+    const loteRef = doc(collection(db, 'lotes'), docId);
+    await setDoc(loteRef, { id: loteId, propietario_id: cid, estado_plano: estadoPlano, valor, reserva, financiar, tasa, meses, cuota }, { merge: true });
+    lotes[loteIdx]._docId = docId;
+  }
+
+  // Inject new lot block into the container (no full form reload needed)
+  const container = document.getElementById(`lotes-asignados-container-${cid}`);
+  const sinMsg    = document.getElementById(`sin-lotes-msg-${cid}`);
+  if (sinMsg) sinMsg.remove();
+
+  const l = lotes[loteIdx];
+  const bloque = document.createElement('div');
+  bloque.id = `edit-lote-bloque-${l.id}`;
+  bloque.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;background:var(--surface2)';
+  bloque.innerHTML = `
+    <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:10px">Lote ${l.id} — ${l.area_m2} m²</div>
+    <div class="form-grid" style="margin-bottom:8px">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Tipo de venta</label>
+        <select class="form-control" id="edit-lote-tipo-${l.id}" onchange="onEditLoteTipoChange('${l.id}')">
+          <option value="plazo"   ${meses>0?'selected':''}>A Plazo</option>
+          <option value="contado" ${meses===0?'selected':''}>Contado</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Precio del lote ($)</label>
+        <input type="number" class="form-control" id="edit-lote-precio-${l.id}" value="${valor}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
+      </div>
+    </div>
+    <div class="form-grid" id="edit-lote-plazo-fields-${l.id}" style="margin-bottom:8px;${meses===0?'display:none':''}">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Prima / Reserva ($)</label>
+        <input type="number" class="form-control" id="edit-lote-reserva-${l.id}" value="${reserva}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Plazo (meses)</label>
+        <input type="number" class="form-control" id="edit-lote-meses-${l.id}" value="${meses||180}" min="1" max="360" oninput="onEditLotePrecioChange('${l.id}')">
+      </div>
+    </div>
+    <div class="form-grid" id="edit-lote-plazo-fields2-${l.id}" style="${meses===0?'display:none':''}">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Tasa anual (%)</label>
+        <input type="number" class="form-control" id="edit-lote-tasa-${l.id}" value="${(tasa*100).toFixed(2)}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
+      </div>
+      <div style="background:var(--accent-pale);border-radius:6px;padding:8px 12px;font-size:12px;display:flex;align-items:center">
+        <span style="color:var(--text-muted)">Cuota calc.:&nbsp;</span>
+        <strong id="edit-lote-cuota-preview-${l.id}" style="color:var(--accent)">${cuota>0?'$'+cuota.toFixed(2)+'/mes':'—'}</strong>
+      </div>
+    </div>`;
+  if (container) container.appendChild(bloque);
+
+  cancelarFormNuevoLote(cid);
+  renderDashboard();
 }
 
 function onEditLoteTipoChange(loteId) {
