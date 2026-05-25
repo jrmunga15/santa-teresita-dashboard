@@ -1071,6 +1071,12 @@
               <input type="number" class="form-control" id="cot-tasa" placeholder="10.5" step="0.01" oninput="renderCotizacion()">
             </div>
           </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Válida por (días)</label>
+              <input type="number" class="form-control" id="cot-validez" value="15" min="1" max="365" step="1" oninput="renderCotizacion()">
+            </div>
+          </div>
           <div id="cot-modo-wrap" style="display:none;margin-top:4px">
             <div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:12px">
               <button id="cot-modo-btn-cuota" onclick="setCotModo('cuota')" style="flex:1;padding:7px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;background:var(--accent);color:#fff">Calcular cuota</button>
@@ -1914,7 +1920,7 @@ function renderCotizacion() {
         </div>
       </div>
       <div style="padding:16px 20px;background:var(--surface2);font-size:11px;color:var(--text-muted);text-align:center;font-style:italic">
-        Esta cotización es válida por 15 días · Parcelación Santa Teresita 2, "Tu pedacito de Cielo"
+        Esta cotización es válida por ${parseInt(document.getElementById('cot-validez')?.value) || 15} días · Parcelación Santa Teresita 2, "Tu pedacito de Cielo"
       </div>
     </div>
     ${tipo === 'plazo' ? `
@@ -1941,6 +1947,8 @@ function limpiarCotizacion() {
   document.getElementById('cot-meses-wrap').style.display = '';
   const cuotaDeseadaEl = document.getElementById('cot-cuota-deseada');
   if (cuotaDeseadaEl) cuotaDeseadaEl.value = '';
+  const validezEl = document.getElementById('cot-validez');
+  if (validezEl) validezEl.value = 15;
   const modoWrap = document.getElementById('cot-modo-wrap');
   if (modoWrap) modoWrap.style.display = 'none';
   setCotModo('cuota');
