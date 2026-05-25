@@ -4798,7 +4798,7 @@ async function fixEstadosFirestore() {
       const fl = d.data();
       const loteId = fl.id || d.id;
       const correct = correctEstados[loteId];
-      if (correct && fl.estado_plano && fl.estado_plano !== correct) {
+      if (correct && fl.estado_plano && fl.estado_plano !== correct && !fl.propietario_id) {
         console.log(`Fixing ${loteId}: ${fl.estado_plano} → ${correct}`);
         await setDoc(doc(collection(db, 'lotes'), d.id),
           { estado_plano: correct }, { merge: true });
