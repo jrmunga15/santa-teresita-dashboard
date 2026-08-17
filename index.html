@@ -2789,7 +2789,11 @@ async function guardarEdicionRecibo() {
   if (window._db && pagos[idx]._docId) {
     const { collection, doc, setDoc } = window._fbFns;
     const ref = doc(collection(window._db, 'pagos'), pagos[idx]._docId);
-    await setDoc(ref, updated, { merge: true });
+    // id and _docId are client-side-only fields derived at load time (see onSnapshot below)
+    // and must never be persisted — a stale id here can collide with another pago's
+    // recibo-derived id once the recibo number is changed.
+    const { id: _staleId, _docId: _staleDocId, ...toSave } = updated;
+    await setDoc(ref, toSave, { merge: true });
   } else {
     pagos[idx] = updated;
   }
