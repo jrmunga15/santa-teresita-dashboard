@@ -11,7 +11,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, doc, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, writeBatch }
+  import { getFirestore, collection, doc, getDoc, getDocFromServer, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, writeBatch }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -29,7 +29,7 @@
 
   window._db      = db;
   window._auth    = auth;
-  window._fbFns   = { collection, doc, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, writeBatch, signOut };
+  window._fbFns   = { collection, doc, getDoc, getDocFromServer, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, writeBatch, signOut };
 
   onAuthStateChanged(auth, user => {
     document.body.style.visibility = 'visible';
@@ -4899,14 +4899,21 @@ window.initFirestoreListeners = async function() {
   _firestoreInitialized = true;
 
   const db    = window._db;
-  const { collection, onSnapshot, getDocs } = window._fbFns;
+  const { collection, doc, onSnapshot, getDocFromServer } = window._fbFns;
 
   // Show loading state
   document.getElementById('page-title').textContent = 'Cargando datos...';
 
-  // ── 1. Check if DB is empty → seed with initial data (only once) ──
-  const clientesSnap = await getDocs(collection(db, 'clientes'));
-  if (clientesSnap.size < 5) {
+  // ── 1. Check if DB has ever been seeded (only once, ever) ──
+  // Uses a persistent marker doc instead of counting live clientes: counting is
+  // unreliable (a transient network blip or stale cache can make the collection
+  // look empty even when it isn't) and previously caused seedFirestore() to run
+  // a second time, duplicating every original cliente/pago/lote record.
+  // getDocFromServer forces a real network read so a stale local cache can't
+  // fool this check either.
+  const seedMarkerRef  = doc(collection(db, '_meta'), 'seeded');
+  const seedMarkerSnap = await getDocFromServer(seedMarkerRef);
+  if (!seedMarkerSnap.exists()) {
     await seedFirestore();
   }
 
@@ -4998,6 +5005,10 @@ async function seedFirestore() {
     const ref = doc(collection(db, 'lotes'));
     batch.set(ref, l);
   });
+
+  // Mark as seeded so this can never run again, no matter how the guard in
+  // initFirestoreListeners() is (mis)evaluated on a future page load.
+  batch.set(doc(collection(db, '_meta'), 'seeded'), { seededAt: new Date().toISOString() });
 
   await batch.commit();
   console.log('✅ Firestore seeded with initial data');
