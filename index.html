@@ -2770,7 +2770,7 @@ async function guardarEdicionRecibo() {
   if (idx < 0) return;
 
   const fecha   = document.getElementById('edit-recibo-fecha').value;
-  const date    = new Date(fecha);
+  const date    = new Date(fecha + 'T12:00:00');
   const mes     = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
 
   const updated = {
@@ -3185,7 +3185,7 @@ function registrarPago() {
   }
 
   const renum = getNextReciboNum();
-  const date = new Date(fecha);
+  const date = new Date(fecha + 'T12:00:00');
   const mesRaw = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
   const mes = mesRaw.charAt(0).toUpperCase() + mesRaw.slice(1);
 
@@ -5115,7 +5115,7 @@ window.registrarPago = async function() {
 
   // Calculate renum BEFORE closing modal, using current pagos state
   const renum = getNextReciboNum();
-  const date  = new Date(fecha);
+  const date  = new Date(fecha + 'T12:00:00');
   const mesRaw2 = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
   const mes   = mesRaw2.charAt(0).toUpperCase() + mesRaw2.slice(1);
 
