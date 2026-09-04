@@ -1667,6 +1667,16 @@ function fmtDate(d) {
   const dt = new Date(d + 'T12:00:00');
   return dt.toLocaleDateString('es-SV', {day:'2-digit',month:'2-digit',year:'numeric'});
 }
+// Derives the "Mes AAAA" label straight from a "YYYY-MM-DD" string's own digits —
+// deliberately avoids Date/toLocaleDateString here: those depend on the browser's
+// timezone (can roll a day-1 date into the previous month) and on ICU locale data
+// (which abbreviates September as "sept", not "sep", breaking exact-string filters
+// elsewhere that expect the short 3-letter form).
+function mesFromFecha(fecha) {
+  const MESES_CAP = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const [y, m] = fecha.split('-').map(Number);
+  return `${MESES_CAP[m-1]} ${y}`;
+}
 function badge(concepto) {
   if (concepto === 'Reserva') return '<span class="badge badge-blue">Reserva</span>';
   if (concepto === 'Contado') return '<span class="badge badge-green">Contado</span>';
@@ -2770,8 +2780,7 @@ async function guardarEdicionRecibo() {
   if (idx < 0) return;
 
   const fecha   = document.getElementById('edit-recibo-fecha').value;
-  const date    = new Date(fecha + 'T12:00:00');
-  const mes     = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
+  const mes     = mesFromFecha(fecha);
 
   const updated = {
     ...pagos[idx],
@@ -3185,9 +3194,7 @@ function registrarPago() {
   }
 
   const renum = getNextReciboNum();
-  const date = new Date(fecha + 'T12:00:00');
-  const mesRaw = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
-  const mes = mesRaw.charAt(0).toUpperCase() + mesRaw.slice(1);
+  const mes = mesFromFecha(fecha);
 
   const nuevo = {
     id: nextId++,
@@ -5115,9 +5122,7 @@ window.registrarPago = async function() {
 
   // Calculate renum BEFORE closing modal, using current pagos state
   const renum = getNextReciboNum();
-  const date  = new Date(fecha + 'T12:00:00');
-  const mesRaw2 = date.toLocaleDateString('es-SV', {month:'short', year:'numeric'});
-  const mes   = mesRaw2.charAt(0).toUpperCase() + mesRaw2.slice(1);
+  const mes   = mesFromFecha(fecha);
 
   const nuevo = {
     recibo: String(renum),
