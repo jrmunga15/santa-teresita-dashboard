@@ -737,14 +737,6 @@
         </div>
       </div>
 
-      <!-- Botón de mantenimiento Firestore -->
-      <div style="margin-bottom:16px;display:flex;justify-content:flex-end">
-        <button class="btn btn-secondary btn-sm" onclick="limpiarEstadosFirestore()"
-          style="font-size:11px;color:var(--text-muted);border-color:var(--border)">
-          🔧 Corregir estados en Firestore
-        </button>
-      </div>
-
       <div class="card">
         <div class="card-header">
           <span class="card-title">Próximos Pagos</span>
@@ -5084,45 +5076,6 @@ async function seedFirestore() {
 // ── Auto-fix stale estado_plano in Firestore ──
 // Lotes whose estado_plano is defined in catalogoLotes seed take precedence
 // over stale Firestore data. This runs once on load to correct discrepancies.
-async function limpiarEstadosFirestore() {
-  const db = window._db;
-  if (!db) { alert('Sin conexión a Firestore'); return; }
-  const { collection, doc, setDoc, deleteDoc, getDocs } = window._fbFns;
-
-  const btn = document.querySelector('[onclick="limpiarEstadosFirestore()"]');
-  if (btn) { btn.textContent = '⏳ Limpiando...'; btn.disabled = true; }
-
-  try {
-    const snap = await getDocs(collection(db, 'lotes'));
-    let fixes = 0;
-
-    for (const d of snap.docs) {
-      const fl = d.data();
-      const loteId = fl.id || d.id;
-      // Find the lote in our current array (already has correct estado)
-      const loteActual = lotes.find(l => l.id === loteId);
-      if (!loteActual) continue;
-
-      const estadoCorrecto = loteActual.estado_plano;
-      if (fl.estado_plano && fl.estado_plano !== estadoCorrecto) {
-        console.log(`Fixing ${loteId}: "${fl.estado_plano}" → "${estadoCorrecto}"`);
-        await setDoc(doc(collection(db, 'lotes'), d.id),
-          { estado_plano: estadoCorrecto }, { merge: true });
-        fixes++;
-      }
-    }
-
-    const msg = fixes > 0 ? `✅ ${fixes} corrección(es) aplicada(s)` : '✓ Todo está correcto';
-    if (btn) { btn.textContent = msg; btn.disabled = false; }
-    setTimeout(() => {
-      if (btn) { btn.textContent = '🔧 Corregir estados en Firestore'; btn.disabled = false; }
-    }, 3000);
-  } catch(e) {
-    console.error('Error:', e);
-    if (btn) { btn.textContent = '❌ Error — ver consola'; btn.disabled = false; }
-  }
-}
-
 async function fixEstadosFirestore() {
   const db = window._db;
   if (!db) return;
