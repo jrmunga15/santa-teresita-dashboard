@@ -1213,7 +1213,7 @@
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Teléfono / WhatsApp</label>
-          <input type="text" class="form-control" id="cli-tel" placeholder="+503 0000-0000">
+          <input type="text" class="form-control" id="cli-tel" placeholder="0000-0000 (o +código de país, ej. +1 305-555-1234)">
         </div>
         <div class="form-group">
           <label class="form-label">Referencia / Agente</label>
@@ -1681,6 +1681,15 @@ function mesFromFecha(fecha) {
   const MESES_CAP = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const [y, m] = fecha.split('-').map(Number);
   return `${MESES_CAP[m-1]} ${y}`;
+}
+// Local Salvadoran numbers are always saved as a bare 8-digit number (no country
+// code), so any digit string longer than 8 already carries its own country code
+// (e.g. "+1 720 341 0444" or "503 7969-2069" typed in by hand) and must be left
+// as-is — only the bare 8-digit case needs "503" prepended for wa.me links.
+function telConCodigoPais(tel) {
+  const digits = (tel || '').replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.length > 8 ? digits : `503${digits}`;
 }
 function badge(concepto) {
   if (concepto === 'Reserva') return '<span class="badge badge-blue">Reserva</span>';
@@ -3626,11 +3635,11 @@ function generarAvisoPago(cid, loteId) {
   };
 
   document.getElementById('aviso-whatsapp-btn').onclick = () => {
-    const tel = c.tel ? c.tel.replace(/\D/g,'') : '';
+    const tel = telConCodigoPais(c.tel);
     const msg = encodeURIComponent(
       `Estimado/a ${c.nombre}, le enviamos un cordial recordatorio de su cuota ${proximaCuota}/${totalCuotas} del Lote ${loteId} · Parcelación Santa Teresita II.\n\nMonto: $${loteInfo.cuota?.toFixed(2)}\nFecha: ${diaPago} de cada mes\n\nPara más detalles, comuníquese al 7969-2069.\n\nMuzzolo Inversiones S.A.S. de C.V.`
     );
-    const url = tel ? `https://wa.me/503${tel}?text=${msg}` : `https://wa.me/?text=${msg}`;
+    const url = tel ? `https://wa.me/${tel}?text=${msg}` : `https://wa.me/?text=${msg}`;
     window.open(url, '_blank');
   };
 
@@ -4112,7 +4121,7 @@ function editarPerfilCliente(cid) {
     <div class="form-grid" style="margin-bottom:14px">
       <div class="form-group">
         <label class="form-label">Teléfono / WhatsApp</label>
-        <input type="text" class="form-control" id="edit-tel" value="${(c.tel||'').replace(/"/g,'&quot;')}" placeholder="0000-0000">
+        <input type="text" class="form-control" id="edit-tel" value="${(c.tel||'').replace(/"/g,'&quot;')}" placeholder="0000-0000 (o +código de país)">
       </div>
       <div class="form-group">
         <label class="form-label">Estado civil</label>
