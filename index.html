@@ -1151,7 +1151,7 @@
       <div class="form-grid-3">
         <div class="form-group">
           <label class="form-label">Monto ($)</label>
-          <input type="number" class="form-control" id="pago-monto" placeholder="0.00" step="0.01">
+          <input type="number" class="form-control" id="pago-monto" placeholder="0.00" step="0.01" oninput="onMontoInput()">
         </div>
         <div class="form-group">
           <label class="form-label">Saldo Pendiente ($)</label>
@@ -3229,6 +3229,31 @@ function autoFillMontoSaldo(concepto, loteInfo, saldoActual) {
     montoField.value = '';
     saldoField.value = saldoActual > 0 ? saldoActual.toFixed(2) : '';
   }
+}
+
+// Recalculates "Saldo Pendiente" live as the admin types a Monto that differs
+// from the auto-suggested cuota — e.g. a lote-habiente abonando más de su
+// cuota mensual. Only applies to cuota ("N/180") and "Abono" concepts, where
+// the extra amount reduces principal; Reserva/Contado/Pago Saldo/Otro set a
+// fixed saldo that doesn't depend on how much was typed into Monto.
+function onMontoInput() {
+  const loteId = document.getElementById('pago-lote').value;
+  if (!loteId) return;
+  const concepto = document.getElementById('pago-concepto').value;
+  const esCuotaOAbono = /^\d+\/\d+$/.test(concepto) || concepto === 'Abono';
+  if (!esCuotaOAbono) return;
+
+  const loteInfo = getLote(loteId);
+  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const ultimoPago = pagosDeLote[pagosDeLote.length - 1];
+  const saldoActual = ultimoPago ? ultimoPago.saldo : (loteInfo.valor || 0);
+
+  const monto = parseFloat(document.getElementById('pago-monto').value) || 0;
+  const tasa = loteInfo.tasa || 0.105;
+  const intereses = Math.round(saldoActual * (tasa/12) * 100) / 100;
+  const capital = Math.round((monto - intereses) * 100) / 100;
+  const nuevoSaldo = Math.round((saldoActual - capital) * 100) / 100;
+  document.getElementById('pago-saldo').value = nuevoSaldo > 0 ? nuevoSaldo.toFixed(2) : '0.00';
 }
 
 function registrarPago() {
