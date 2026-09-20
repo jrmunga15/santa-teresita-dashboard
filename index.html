@@ -1282,7 +1282,25 @@
       <span class="modal-title">Lotes — Ingreso Mensual a Plazo</span>
       <button class="modal-close" onclick="closeModal('modal-ingreso-mensual')">×</button>
     </div>
-    <div class="modal-body" id="ingreso-mensual-detalle-body"></div>
+    <div class="modal-body">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">
+          Cuotas cobradas por período
+        </div>
+        <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" style="font-size:11px">Desde</label>
+            <input type="date" class="form-control" id="ingreso-periodo-desde" onchange="calcularIngresoPlazoPeriodo()">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" style="font-size:11px">Hasta</label>
+            <input type="date" class="form-control" id="ingreso-periodo-hasta" onchange="calcularIngresoPlazoPeriodo()">
+          </div>
+        </div>
+        <div id="ingreso-periodo-resultado" style="margin-top:10px;font-size:13px"></div>
+      </div>
+      <div id="ingreso-mensual-detalle-body"></div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-ingreso-mensual')">Cerrar</button>
     </div>
@@ -2175,7 +2193,35 @@ function verDetalleIngresoMensual() {
         </tr></tfoot>
       </table></div>`;
 
+  // Default period: current month
+  const hoy = new Date();
+  const desdeDefault = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-01`;
+  const hastaDefault = hoy.toISOString().split('T')[0];
+  document.getElementById('ingreso-periodo-desde').value = desdeDefault;
+  document.getElementById('ingreso-periodo-hasta').value = hastaDefault;
+  calcularIngresoPlazoPeriodo();
+
   openModal('modal-ingreso-mensual');
+}
+
+// Suma el dinero realmente cobrado en cuotas de plazo ("N/180", etc.) dentro
+// del rango [desde, hasta] elegido — un reporte histórico de cobros reales,
+// distinto del detalle de lotes activos (que es una foto del presente).
+function calcularIngresoPlazoPeriodo() {
+  const desde = document.getElementById('ingreso-periodo-desde').value;
+  const hasta = document.getElementById('ingreso-periodo-hasta').value;
+  const resultEl = document.getElementById('ingreso-periodo-resultado');
+  if (!desde || !hasta) { resultEl.innerHTML = ''; return; }
+
+  const cuotasEnPeriodo = pagos.filter(p =>
+    p.concepto && /^\d+\/\d+$/.test(p.concepto) && p.fecha >= desde && p.fecha <= hasta
+  );
+  const total = cuotasEnPeriodo.reduce((s,p) => s + (p.monto||0), 0);
+
+  resultEl.innerHTML = cuotasEnPeriodo.length === 0
+    ? '<span style="color:var(--text-muted)">Sin cuotas cobradas en ese período</span>'
+    : `<strong style="color:var(--accent);font-size:16px">${fmt(total)}</strong>
+       <span style="color:var(--text-muted)"> — ${cuotasEnPeriodo.length} cuota(s) cobradas</span>`;
 }
 
 // ═══════════════════════════════════════════════
