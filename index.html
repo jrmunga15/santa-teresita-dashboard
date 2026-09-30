@@ -1362,7 +1362,7 @@
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Monto ($)</label>
-          <input type="number" class="form-control" id="edit-recibo-monto" step="0.01">
+          <input type="number" class="form-control" id="edit-recibo-monto" step="0.01" oninput="onEditMontoInput()">
         </div>
         <div class="form-group">
           <label class="form-label">Saldo Pendiente ($)</label>
@@ -2879,6 +2879,33 @@ function abrirEditarRecibo() {
   document.getElementById('edit-recibo-notas').value = p.notas || '';
   closeModal('modal-ver-recibo');
   openModal('modal-editar-recibo');
+}
+
+// Same gap as onMontoInput() but for the "Editar Recibo" form: editing Monto
+// here didn't recalculate Saldo either, so a receipt created with the nominal
+// cuota and later bumped up to the real amount paid (e.g. to add an invoice
+// number) kept the saldo computed off the smaller original amount.
+function onEditMontoInput() {
+  const p = pagos.find(x => x.id === _reciboActivoId);
+  if (!p) return;
+  const concepto = document.getElementById('edit-recibo-concepto').value.trim();
+  const esCuotaOAbono = /^\d+\/\d+$/.test(concepto) || concepto === 'Abono';
+  if (!esCuotaOAbono) return;
+
+  const loteInfo = getLote(p.lote);
+  const fechaEdit = document.getElementById('edit-recibo-fecha').value || p.fecha;
+  const anteriores = pagos
+    .filter(x => x.lote === p.lote && x.id !== p.id && x.fecha <= fechaEdit)
+    .sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const anterior = anteriores[anteriores.length - 1];
+  const saldoAntes = anterior ? anterior.saldo : (loteInfo.valor || 0);
+
+  const monto = parseFloat(document.getElementById('edit-recibo-monto').value) || 0;
+  const tasa = loteInfo.tasa || 0.105;
+  const intereses = Math.round(saldoAntes * (tasa/12) * 100) / 100;
+  const capital = Math.round((monto - intereses) * 100) / 100;
+  const nuevoSaldo = Math.round((saldoAntes - capital) * 100) / 100;
+  document.getElementById('edit-recibo-saldo').value = nuevoSaldo > 0 ? nuevoSaldo.toFixed(2) : '0.00';
 }
 
 async function guardarEdicionRecibo() {
