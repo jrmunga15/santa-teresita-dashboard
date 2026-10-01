@@ -893,6 +893,7 @@
             <option value="activo">Con saldo activo</option>
             <option value="saldado">Saldados</option>
           </select>
+          <button class="btn btn-secondary btn-sm" onclick="auditarSaldos()" title="Revisa que el saldo de cada lote coincida con el cálculo de interés">🔍 Auditar Saldos</button>
         </div>
       </div>
 
@@ -1271,6 +1272,20 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-generar-recibo')">Cerrar</button>
       <button class="btn btn-primary" onclick="imprimirRecibo()">📄 Descargar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Auditar Saldos -->
+<div class="modal-overlay" id="modal-auditar-saldos">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-header">
+      <span class="modal-title">Auditoría de Saldos</span>
+      <button class="modal-close" onclick="closeModal('modal-auditar-saldos')">×</button>
+    </div>
+    <div class="modal-body" id="auditar-saldos-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-auditar-saldos')">Cerrar</button>
     </div>
   </div>
 </div>
@@ -4717,6 +4732,66 @@ function calcSaldoLote(loteId) {
   const cuotasPagadas = pagosDeLote.filter(p => p.concepto?.includes('/')).length;
 
   return { historial, totalPagado, totalIntereses, totalCapital, saldoActual, cuotasPagadas, cuotasTotal, loteInfo };
+}
+
+// Walks every lot's cuota/Abono payments in order and recomputes each one's
+// saldo from the ACTUAL saldo stored on the previous payment, using the same
+// interest/capital formula the app uses when registering a payment. Flags any
+// payment whose stored saldo doesn't match — e.g. a lote-habiente who paid
+// more than the nominal cuota while the saldo field didn't get recalculated.
+// Reserva/Contado/Pago Saldo/Saldo Total set an authoritative new balance and
+// aren't interest-bearing, so they just reset the baseline for what follows.
+function auditarSaldos() {
+  const hallazgos = [];
+  const lotesConCuotas = [...new Set(pagos
+    .filter(p => /^\d+\/\d+$/.test(p.concepto||'') || p.concepto === 'Abono')
+    .map(p => p.lote))];
+
+  lotesConCuotas.forEach(loteId => {
+    const l = getLote(loteId);
+    if (!l || !l.tasa) return;
+    const ps = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
+
+    let saldoAnterior = null;
+    ps.forEach(p => {
+      const esBaseline = p.concepto === 'Reserva' || p.concepto === 'Contado' || p.concepto === 'Pago Saldo' || p.concepto === 'Saldo Total';
+      const esCuotaOAbono = /^\d+\/\d+$/.test(p.concepto||'') || p.concepto === 'Abono';
+      if (esBaseline || !esCuotaOAbono) { saldoAnterior = p.saldo; return; }
+
+      const base = saldoAnterior !== null ? saldoAnterior : (l.valor || 0);
+      const intereses = Math.round(base * (l.tasa/12) * 100) / 100;
+      const capital = Math.round((p.monto - intereses) * 100) / 100;
+      const esperado = Math.round((base - capital) * 100) / 100;
+      const diff = Math.round((p.saldo - esperado) * 100) / 100;
+
+      if (Math.abs(diff) > 1) {
+        hallazgos.push({ loteId, cliente: getCliente(l.propietario_id), recibo: p.recibo, fecha: p.fecha, concepto: p.concepto, monto: p.monto, esperado, actual: p.saldo, diff });
+      }
+      saldoAnterior = p.saldo;
+    });
+  });
+
+  const body = document.getElementById('auditar-saldos-body');
+  body.innerHTML = hallazgos.length === 0
+    ? '<div style="text-align:center;padding:30px;color:var(--text-muted)">✅ Todo en orden — ningún saldo tiene discrepancias.</div>'
+    : `<div style="margin-bottom:10px;font-size:13px;color:var(--text-muted)">${hallazgos.length} recibo(s) con el saldo guardado distinto al esperado:</div>
+       <div class="table-wrap"><table>
+        <thead><tr><th>Lote</th><th>Lote-habiente</th><th>Recibo</th><th>Fecha</th><th>Monto</th><th>Esperado</th><th>Guardado</th><th>Diferencia</th></tr></thead>
+        <tbody>
+          ${hallazgos.map(h => `<tr>
+            <td style="font-weight:600">${h.loteId}</td>
+            <td>${h.cliente.nombre || '—'}</td>
+            <td style="color:var(--accent)">${h.recibo}</td>
+            <td>${fmtDate(h.fecha)}</td>
+            <td>${fmt(h.monto)}</td>
+            <td>${fmt(h.esperado)}</td>
+            <td>${fmt(h.actual)}</td>
+            <td style="font-weight:700;color:var(--red)">${fmt(h.diff)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`;
+
+  openModal('modal-auditar-saldos');
 }
 
 function renderSaldos() {
