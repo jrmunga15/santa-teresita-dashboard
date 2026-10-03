@@ -2255,7 +2255,7 @@ function initProximosPagos() {
     const c = getCliente(loteInfo.propietario_id);
     if (!c) return;
 
-    const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
+    const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
     const cuotasPagadas = pagosDeLote.filter(p => p.concepto && /^\d+\/\d+$/.test(p.concepto)).length;
 
     // Skip if fully paid (saldo = 0) or all cuotas done
@@ -2530,7 +2530,7 @@ function verDetalleLote(loteId) {
   const l = getLote(loteId);
   if (!l) return;
   const c = l.propietario_id ? getCliente(l.propietario_id) : null;
-  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
   const lastPago = pagosDeLote[pagosDeLote.length - 1];
   const saldo = lastPago ? (lastPago.saldo || 0) : (l.valor || 0);
   const cuotasPagadas = pagosDeLote.filter(p => p.concepto && /^\d+\/\d+$/.test(p.concepto)).length;
@@ -2776,7 +2776,7 @@ function buildReciboCopy(p, c, loteInfo, esCopia = false) {
     ? 'Pago de Contado Lote Parcelación Sta. Teresita 2'
     : `Abono Cuota ${p.concepto} Lote Parc. Sta. Teresita 2`;
 
-  const primerPago = pagos.filter(px => px.lote === p.lote).sort((a,b) => a.fecha.localeCompare(b.fecha))[0];
+  const primerPago = pagos.filter(px => px.lote === p.lote).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo))[0];
   const fechaRef = primerPago ? primerPago.fecha : p.fecha;
   const diaPago = fechaRef ? new Date(fechaRef+'T12:00:00').getDate()+' de cada Mes' : '—';
 
@@ -2911,7 +2911,7 @@ function onEditMontoInput() {
   const fechaEdit = document.getElementById('edit-recibo-fecha').value || p.fecha;
   const anteriores = pagos
     .filter(x => x.lote === p.lote && x.id !== p.id && x.fecha <= fechaEdit)
-    .sort((a,b) => a.fecha.localeCompare(b.fecha));
+    .sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
   const anterior = anteriores[anteriores.length - 1];
   const saldoAntes = anterior ? anterior.saldo : (loteInfo.valor || 0);
 
@@ -3107,7 +3107,7 @@ function printAmortizacion() {
 
   const loteInfo = getLote(loteId);
   const c = loteInfo.propietario_id ? getCliente(loteInfo.propietario_id) : null;
-  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
   const cuotasPagadas = pagosDeLote.filter(p => p.concepto?.includes('/') || p.concepto === 'Abono').length;
   const saldoActual = pagosDeLote.length > 0 ? pagosDeLote[pagosDeLote.length-1].saldo : loteInfo.financiar;
   const totalInteres = tabla.slice(0, cuotasPagadas).reduce((s,r) => s + (r[3]||0), 0);
@@ -3253,7 +3253,7 @@ function onLoteChange() {
   const loteInfo = getLote(loteId);
 
   // Get current saldo from last payment on this lot
-  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
   const ultimoPago = pagosDeLote[pagosDeLote.length - 1];
   const saldoActual = ultimoPago ? ultimoPago.saldo : (loteInfo.valor || 0);
 
@@ -3285,7 +3285,7 @@ function onConceptoChange() {
   if (!loteId) return;
   const loteInfo = getLote(loteId);
   const concepto = document.getElementById('pago-concepto').value;
-  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
   const ultimoPago = pagosDeLote[pagosDeLote.length - 1];
   const saldoActual = ultimoPago ? ultimoPago.saldo : (loteInfo.valor || 0);
   autoFillMontoSaldo(concepto, loteInfo, saldoActual);
@@ -3332,7 +3332,7 @@ function onMontoInput() {
   if (!esCuotaOAbono) return;
 
   const loteInfo = getLote(loteId);
-  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
   const ultimoPago = pagosDeLote[pagosDeLote.length - 1];
   const saldoActual = ultimoPago ? ultimoPago.saldo : (loteInfo.valor || 0);
 
@@ -3724,7 +3724,7 @@ function generarAvisoPago(cid, loteId) {
   const loteInfo = getLote(loteId);
   if (!c || !loteInfo) return;
 
-  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
   const cuotasPagadas = pagosDeLote.filter(p => p.concepto && /^\d+\/\d+$/.test(p.concepto)).length;
   const proximaCuota = cuotasPagadas + 1;
   const totalCuotas = loteInfo.meses || 180;
@@ -4039,7 +4039,7 @@ function verPerfilCliente(cid) {
     const loteId = loteInfo.id;
     const tasa = loteInfo.tasa||0.105;
     const tienePlazo = loteInfo.meses > 0;
-    const pagosDeLote = pagos.filter(p=>p.lote===loteId).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+    const pagosDeLote = pagos.filter(p=>p.lote===loteId).sort((a,b)=>a.fecha.localeCompare(b.fecha)||a.recibo.localeCompare(b.recibo));
     const last = pagosDeLote[pagosDeLote.length-1];
     const saldo = last ? last.saldo||0 : (loteInfo.valor||0);
     const cuotasPagadas = pagosDeLote.filter(p=>p.concepto&&/^\d+\/\d+$/.test(p.concepto)).length;
@@ -5028,7 +5028,7 @@ function renderAmortizacion(loteId) {
 
   // Determine current cuota from pagos registrados
   const pagosDeLote = pagos.filter(p => p.lote === loteId)
-    .sort((a,b) => a.fecha.localeCompare(b.fecha));
+    .sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
   const cuotasPagadas = pagosDeLote.filter(p => p.concepto?.includes('/') || p.concepto === 'Abono').length;
   const saldoActual = pagosDeLote.length > 0 ? pagosDeLote[pagosDeLote.length-1].saldo : (loteInfo.valor || 0);
 
