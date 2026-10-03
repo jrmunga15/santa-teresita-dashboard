@@ -4696,7 +4696,11 @@ function calcSaldoLote(loteId) {
 
   pagosDeLote.forEach((p, i) => {
     const tienePlazo = loteInfo.meses > 0;
-    const esCuota = tienePlazo && (p.concepto?.includes('/') || p.concepto === 'Abono' || p.concepto === 'Pago Saldo');
+    // "Pago Saldo" closes out the remaining balance in one lump sum — like
+    // "Saldo Total" and "Contado" it carries no interest, so it must NOT be
+    // treated as an interest-bearing cuota here (buildReciboCopy(), which
+    // drives the printed receipt, already excludes it correctly).
+    const esCuota = tienePlazo && (p.concepto?.includes('/') || p.concepto === 'Abono');
     const esPrimeraCuota = p.concepto && /^1\/\d+$/.test(p.concepto);
 
     let saldoAnterior;
@@ -5027,6 +5031,7 @@ function renderAmortizacion(loteId) {
 
   const loteInfo = getLote(loteId);
   const c = loteInfo.propietario_id ? getCliente(loteInfo.propietario_id) : null;
+  const totalCuotas = loteInfo.meses || tabla.length;
 
   // Determine current cuota from pagos registrados
   const pagosDeLote = pagos.filter(p => p.lote === loteId)
@@ -5034,9 +5039,11 @@ function renderAmortizacion(loteId) {
   const cuotasPagadas = pagosDeLote.filter(p => p.concepto?.includes('/') || p.concepto === 'Abono').length;
   const saldoActual = pagosDeLote.length > 0 ? pagosDeLote[pagosDeLote.length-1].saldo : (loteInfo.valor || 0);
 
-  // Stats
-  const totalInteres = tabla.slice(0, cuotasPagadas).reduce((s,r) => s + (r[3]||0), 0);
-  const totalCapital = tabla.slice(0, cuotasPagadas).reduce((s,r) => s + (r[4]||0), 0);
+  // Stats — use the real amounts actually paid (calcSaldoLote), not the theoretical
+  // table sliced by cuota count: a lote-habiente who pays more or less than the
+  // nominal cuota would otherwise show a capital/interés split that doesn't match
+  // what the Saldos page (the source of truth for real money) reports.
+  const { totalIntereses: totalInteres, totalCapital } = calcSaldoLote(loteId);
   const totalPagado = pagosDeLote.reduce((s,p) => s + (p.monto||0), 0);
 
   empty.style.display = 'none';
@@ -5044,8 +5051,8 @@ function renderAmortizacion(loteId) {
   statsDiv.innerHTML = `
     <div class="stat-card blue">
       <div class="label">Cuota Actual</div>
-      <div class="value">${cuotasPagadas} <span style="font-size:16px;color:var(--text-muted)">/ 180</span></div>
-      <div class="sub">${180-cuotasPagadas} cuotas restantes</div>
+      <div class="value">${cuotasPagadas} <span style="font-size:16px;color:var(--text-muted)">/ ${totalCuotas}</span></div>
+      <div class="sub">${totalCuotas-cuotasPagadas} cuotas restantes</div>
     </div>
     <div class="stat-card green">
       <div class="label">Capital Amortizado</div>
@@ -5064,13 +5071,13 @@ function renderAmortizacion(loteId) {
     </div>`;
 
   // Progress bar
-  const pct = Math.round((cuotasPagadas / 180) * 100);
+  const pct = Math.round((cuotasPagadas / totalCuotas) * 100);
   progressCard.style.display = 'block';
   document.getElementById('amort-progress-label').textContent = `Lote ${loteId} — Progreso de amortización`;
   document.getElementById('amort-progress-pct').textContent = `${pct}% completado`;
   document.getElementById('amort-progress-bar').style.width = pct + '%';
   document.getElementById('amort-prog-left').textContent = `Cuota ${cuotasPagadas} pagada`;
-  document.getElementById('amort-prog-right').textContent = `Finaliza en cuota 180`;
+  document.getElementById('amort-prog-right').textContent = `Finaliza en cuota ${totalCuotas}`;
 
   // Table
   tableCard.style.display = 'block';
