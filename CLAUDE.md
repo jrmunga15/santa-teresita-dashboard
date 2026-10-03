@@ -64,8 +64,11 @@ Navigation via `navigate(page)` (line ~1673). Pages are `<div class="page">` ele
 - `renderDashboard()` / `renderClientes()` / `renderPagos()` / etc. — called after every Firestore snapshot
 - `openModal(id)` / `closeModal(id)` — modal management
 - `calcIntereses(saldoAnterior, tasaAnual)` — interest calculation for receipt preview
-- `seedFirestore()` — seeds Firestore from hardcoded data if < 5 client records exist (runs once on first load)
-- `fixEstadosFirestore()` — reconciles stale `estado_plano` values on load
+- `calcSaldoLote(loteId)` — single source of truth for a lote's real capital/interest paid to date, computed from actual payment amounts (not the theoretical amortization table). Used by the Saldos page and both Amortización stat views (screen + print).
+- `mesFromFecha(fecha)` — derives the "Mes AAAA" label straight from a "YYYY-MM-DD" string's digits. Never use `new Date(fecha).toLocaleDateString(...)` for this: it depends on the browser's timezone (can roll a day-1 date into the previous month) and locale data (abbreviates "septiembre" as "sept", not "sep").
+- `auditarSaldos()` (Saldos page, "🔍 Auditar Saldos" button) — recalculates every cuota/Abono payment's expected saldo from the previous payment's stored saldo and flags any mismatch. Self-service version of the audit used to find and fix every saldo bug described below.
+- `seedFirestore()` — seeds Firestore from hardcoded data once, guarded by a `_meta/seeded` marker doc (not a live document count — see "Known data-integrity fixes" below)
+- `fixEstadosFirestore()` — reconciles stale `estado_plano` values on load, skips lotes that already have a `propietario_id`
 
 ### Normalization Rules (enforced in `onSnapshot` for `pagos`)
 
@@ -80,3 +83,9 @@ Navigation via `navigate(page)` (line ~1673). Pages are `<div class="page">` ele
 - CSS custom properties in `:root` for all colors and spacing
 - Responsive: sidebar collapses to hamburger + bottom nav bar on mobile (≤768px)
 - Language: Spanish (El Salvador locale)
+
+## Known data quirks (not bugs — confirmed intentional)
+
+- **I-1 / I-2 pricing looks swapped.** I-1 (238.44 m², the larger lot) sold for $15,750 while I-2 (201.17 m², smaller) sold for $18,750 — backwards from what area alone would suggest. Confirmed with the business owner: this reflects the actual negotiated prices, not a data-entry error. Don't "fix" this.
+- **Multiple receipts share one "Factura No." in their `notas`.** When several lote-habientes pay their cuota on the same collection day, their receipts are issued under a single consolidated tax invoice number (e.g. "Factura No.63" appears on 4 different recibos for 4 different lotes/clientes on the same date). This is the expected accounting process, not a numbering bug — confirmed by the business owner on 2026-10-03.
+- **A few sold lotes (F-5, F-6 historically) predate `datosFinancieros`.** A one-time migration that used to force certain lotes back to `estado_plano: "Disponible"` was removed (it was guarded by a per-browser `localStorage` flag, so it kept re-running on any new device and reverting lotes that had since been legitimately sold — see git history around "Remove lot-resetting migration" for the incident). If a lote's status ever looks wrong, use "🔍 Auditar Saldos" and check `estado_plano` vs `propietario_id` consistency before assuming new data is at fault.
