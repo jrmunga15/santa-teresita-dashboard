@@ -3650,7 +3650,9 @@ function guardarCliente() {
   const nombre = document.getElementById('cli-nombre').value.trim();
   if (!nombre) { alert('El nombre es obligatorio.'); return; }
 
-  const nextNum = clientes.length + 1;
+  // Based on the highest id in use, not the current count — using count alone
+  // reassigns an id/codigo already taken once any client has ever been deleted.
+  const nextNum = Math.max(0, ...clientes.map(c => c.id || 0)) + 1;
   const codigo = 'LHPST-' + String(nextNum).padStart(4, '0');
   const newId = nextNum;
 
@@ -5210,18 +5212,6 @@ window.initFirestoreListeners = async function() {
     });
     renderDashboard();
   });
-
-  // One-time migration: set F-5, F-6, I-3, I-4 to Disponible in Firestore
-  const MIG_KEY = 'mig_pendientes_disponible_v1';
-  if (!localStorage.getItem(MIG_KEY)) {
-    const { collection, doc, setDoc } = window._fbFns;
-    const lotesACorregir = ['F-5', 'F-6', 'I-3', 'I-4'];
-    for (const loteId of lotesACorregir) {
-      await setDoc(doc(collection(db, 'lotes'), loteId),
-        { id: loteId, estado_plano: 'Disponible' }, { merge: true });
-    }
-    localStorage.setItem(MIG_KEY, '1');
-  }
 };
 
 async function seedFirestore() {
@@ -5378,7 +5368,9 @@ window.guardarCliente = async function() {
   const nombre = document.getElementById('cli-nombre').value.trim();
   if (!nombre) { alert('El nombre es obligatorio.'); return; }
 
-  const nextNum = clientes.length + 1;
+  // Based on the highest id in use, not the current count — using count alone
+  // reassigns an id/codigo already taken once any client has ever been deleted.
+  const nextNum = Math.max(0, ...clientes.map(c => c.id || 0)) + 1;
   const codigo  = 'LHPST-' + String(nextNum).padStart(4, '0');
   const newId   = nextNum;
 
