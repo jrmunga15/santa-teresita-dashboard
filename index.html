@@ -14,6 +14,10 @@
   import { getFirestore, collection, doc, getDoc, getDocFromServer, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, writeBatch }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+  // Emails de usuarios con acceso restringido: sin Dashboard ni totales
+  // agregados en Saldos por Lote (solo ven el detalle de cada lote).
+  const EMAILS_LIMITADOS = [];
+
   const firebaseConfig = {
     apiKey: "AIzaSyD6-OJpsyN6pUMlcQ0YnVuUIwnlXMaVXzY",
     authDomain: "santa-teresita-2.firebaseapp.com",
@@ -38,7 +42,10 @@
       document.getElementById('app-shell').style.display = 'block';
       document.getElementById('topbar-user').textContent = user.email;
       window._currentUser = user;
+      window.esUsuarioLimitado = EMAILS_LIMITADOS.includes((user.email||'').toLowerCase());
+      document.body.classList.toggle('usuario-limitado', window.esUsuarioLimitado);
       window.initFirestoreListeners();
+      if (window.esUsuarioLimitado && window.navigate) window.navigate('pagos');
     } else {
       document.getElementById('login-screen').style.display = 'flex';
       document.getElementById('app-shell').style.display = 'none';
@@ -151,6 +158,9 @@
   .nav-item.active { color: #fff; background: rgba(255,255,255,0.1); font-weight: 500; }
   .nav-item .icon { width: 16px; height: 16px; opacity: 0.7; flex-shrink: 0; }
   .nav-item.active .icon { opacity: 1; }
+  /* Usuario limitado: sin Dashboard ni totales agregados en Saldos */
+  body.usuario-limitado .nav-dashboard,
+  body.usuario-limitado #saldos-stats { display: none !important; }
   .sidebar-footer {
     padding: 16px 24px;
     border-top: 1px solid rgba(255,255,255,0.08);
@@ -621,7 +631,7 @@
     </div>
   </div>
   <div class="nav">
-    <button class="nav-item active" onclick="navigate('dashboard'); closeSidebar()">
+    <button class="nav-item active nav-dashboard" onclick="navigate('dashboard'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
       Dashboard
     </button>
@@ -1757,6 +1767,7 @@ function numeroALetras(num) {
 // ═══════════════════════════════════════════════
 const pageTitles = { dashboard:'Dashboard', clientes:'Lote-habientes', pagos:'Pagos Recibidos', lotes:'Lotes', recibos:'Recibos', saldos:'Saldos por Lote', amortizacion:'Amortización', cotizaciones:'Cotizaciones' };
 function navigate(page) {
+  if (page === 'dashboard' && window.esUsuarioLimitado) page = 'pagos';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
@@ -5555,7 +5566,7 @@ window.guardarEdicionPerfil = async function(cid) {
 </script>
 <!-- Mobile bottom nav -->
 <nav class="mobile-nav" id="mobile-nav">
-  <button class="mobile-nav-item active" onclick="navigate('dashboard');setMobileNav(this)">
+  <button class="mobile-nav-item active nav-dashboard" onclick="navigate('dashboard');setMobileNav(this)">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
     Inicio
   </button>
