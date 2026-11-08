@@ -85,7 +85,7 @@ Navigation via `navigate(page)` (line ~1673). Pages are `<div class="page">` ele
 
 ### Costos
 
-- Simple admin-only expense ledger (`costos` collection), unrelated to any lote or pago — tracks project-wide spend (Terreno, Permisos/Legal, Infraestructura, Publicidad, Mano de obra, Otros) since the lotificación started.
+- Simple admin-only expense ledger (`costos` collection), unrelated to any lote or pago — tracks project-wide spend since the lotificación started. Categories (Honorarios Profesionales, Aranceles, Mano de Obra, Alquileres, Prestaciones de Ley, Tasas Alcaldia, Equipo Oficina, Materiales de Construcción, Comisiones por Venta, Gastos Varios) mirror the business's own historical "Segmento" ledger (imported 2026-11-08 from `GASTOS_INICIALES_PROYECTO_PARCELACION_2024_A_2026`, 76 entries, 2024-07-16 to 2026-03-31) — don't rename them without checking that file, existing `costos` docs keep whatever string was in their `categoria` field.
 - `abrirModalCosto(docId?)` / `guardarCosto()` / `borrarCosto(docId)` handle the single add/edit modal (`modal-costo`) and deletion — no approval flow, since only the admin can ever reach this page.
 - The Dashboard's "Rentabilidad" row and the Costos page itself both show **Utilidad Neta** = `pagos` total − `costos` total, turning red when negative (`renderDashboard()`, `renderCostos()`).
 - Unlike `pagos`/`lotes`/`clientes`, nothing else in the app reads `costos`, so `firestore.rules` denies a limited email even `read` access to it, not just `write`.
