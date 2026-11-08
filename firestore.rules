@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function estaAutenticado() {
+      return request.auth != null;
+    }
+
+    // Debe coincidir con EMAILS_LIMITADOS en index.html. Un correo aquí
+    // puede leer todo lo necesario para hacer su trabajo (clientes, lotes,
+    // pagos ya confirmados) pero no puede escribir directo en pagos, lotes
+    // ni clientes, y en pagos_pendientes solo puede crear un borrador
+    // propio en estado 'pendiente' — nunca aprobarlo ni editarlo.
+    function esLimitado() {
+      return estaAutenticado() &&
+        request.auth.token.email in [
+          'grupomamapan1@gmail.com'
+        ];
+    }
+
+    match /clientes/{id} {
+      allow read: if estaAutenticado();
+      allow write: if estaAutenticado() && !esLimitado();
+    }
+
+    match /lotes/{id} {
+      allow read: if estaAutenticado();
+      allow write: if estaAutenticado() && !esLimitado();
+    }
+
+    match /pagos/{id} {
+      allow read: if estaAutenticado();
+      allow write: if estaAutenticado() && !esLimitado();
+    }
+
+    match /pagos_pendientes/{id} {
+      allow read: if estaAutenticado();
+      // Cualquiera autenticado puede enviar un borrador, pero solo a su
+      // propio nombre y siempre en estado 'pendiente' — no puede crear uno
+      // ya marcado como 'aprobado'.
+      allow create: if estaAutenticado()
+        && request.resource.data.estado == 'pendiente'
+        && request.resource.data.creado_por == request.auth.token.email;
+      // Aprobar/rechazar (cambiar el estado) es exclusivo del administrador.
+      allow update, delete: if estaAutenticado() && !esLimitado();
+    }
+
+    match /_meta/{id} {
+      allow read: if estaAutenticado();
+      allow write: if estaAutenticado() && !esLimitado();
+    }
+  }
+}

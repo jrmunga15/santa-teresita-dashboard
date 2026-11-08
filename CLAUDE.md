@@ -30,6 +30,7 @@ Three Firestore collections, mirrored as in-memory arrays:
 |---|---|---|
 | `clientes` | `clientes` | Lot owners with contact info and lot assignments |
 | `pagos` | `pagos` | Payment records (recibo number, amount, date, balance) |
+| `pagosPendientes` | `pagos_pendientes` | Draft receipts awaiting admin approval — see "Roles" below. Never merged into `pagos`; approving one creates a brand-new `pagos` doc. |
 | `lotes` | `lotes` | Lot status and ownership overrides |
 
 Two additional **static/hardcoded** arrays that never go to Firestore:
@@ -69,6 +70,17 @@ Navigation via `navigate(page)` (line ~1673). Pages are `<div class="page">` ele
 - `auditarSaldos()` (Saldos page, "🔍 Auditar Saldos" button) — recalculates every cuota/Abono payment's expected saldo from the previous payment's stored saldo and flags any mismatch. Self-service version of the audit used to find and fix every saldo bug described below.
 - `seedFirestore()` — seeds Firestore from hardcoded data once, guarded by a `_meta/seeded` marker doc (not a live document count — see "Known data-integrity fixes" below)
 - `fixEstadosFirestore()` — reconciles stale `estado_plano` values on load, skips lotes that already have a `propietario_id`
+
+### Roles & Approval Queue
+
+- `EMAILS_LIMITADOS` (top of the `<script type="module">` block) lists emails with restricted access: no Dashboard, no aggregate totals in Saldos por Lote, and `registrarPago()` sends their receipts to `pagos_pendientes` (status `pendiente`) instead of writing `pagos` directly.
+- Everyone can see the **Pendientes** page; only non-limited (admin) accounts get the "Aprobar"/"Rechazar" buttons there (`renderPendientes()`).
+- `aprobarPendiente(docId)` does NOT trust the `saldo_sugerido` the limited user saw at draft time — it recomputes the saldo from the *current* `pagos` state using the shared `esConceptoInteresable()`/`calcularNuevoSaldoPorMonto()` helpers, in case another payment for the same lote was approved in the meantime. Only then does it create the real `pagos` doc and assign the recibo number.
+- This in-app gating is UI-only. The matching enforcement lives in `firestore.rules` (see below) — **the email list in both files must be kept in sync by hand**, there's no shared source of truth between them.
+
+### Firestore Security Rules
+
+`firestore.rules` (deployed separately via the Firebase console or `firebase deploy --only firestore:rules` — this repo has no CI wired to auto-deploy it) mirrors `EMAILS_LIMITADOS`: a limited email can read everything the app needs but can't write to `clientes`/`lotes`/`pagos`/`_meta`, and in `pagos_pendientes` can only `create` a doc attributed to itself with `estado: 'pendiente'` — never approve/reject (`update`/`delete`) one. Adding or removing a restricted user means editing the email in *both* `index.html`'s `EMAILS_LIMITADOS` and `firestore.rules`' `esLimitado()`.
 
 ### Normalization Rules (enforced in `onSnapshot` for `pagos`)
 
