@@ -3075,8 +3075,20 @@ async function borrarRecibo() {
   if (!confirm(`¿Borrar el recibo ${p.recibo || '#'+p.id}?\n\nEsta acción no se puede deshacer.`)) return;
 
   if (window._db && p._docId) {
-    const { collection, doc, deleteDoc } = window._fbFns;
+    const { collection, doc, deleteDoc, setDoc } = window._fbFns;
     await deleteDoc(doc(collection(window._db, 'pagos'), p._docId));
+
+    // Si este recibo nació de un borrador ya aprobado en pagos_pendientes,
+    // deja constancia de que se borró -- si no, ese borrador se quedaría
+    // mostrando "✓ Aprobado · No. X" para siempre aunque el recibo real ya
+    // no exista.
+    const pendiente = pagosPendientes.find(x => x.estado === 'aprobado' && x.recibo_final === p.recibo);
+    if (pendiente) {
+      await setDoc(doc(collection(window._db, 'pagos_pendientes'), pendiente._docId), {
+        recibo_borrado_en: new Date().toISOString(),
+        recibo_borrado_por: window._currentUser?.email || '',
+      }, { merge: true });
+    }
   } else {
     const idx = pagos.findIndex(x => x.id === _reciboActivoId);
     if (idx >= 0) pagos.splice(idx, 1);
@@ -5680,17 +5692,28 @@ function renderPendientes() {
 
   tbody.innerHTML = ordenados.map(p => {
     const c = getCliente(p.cliente_id);
-    const badge = p.estado === 'aprobado'
-      ? `<span class="badge badge-green">✓ Aprobado · No. ${p.recibo_final || ''}</span>`
-      : p.estado === 'rechazado'
-        ? `<span class="badge badge-gray">✗ Rechazado</span>`
-        : `<span class="badge badge-amber">Pendiente</span>`;
+    // Un recibo ya aprobado se puede borrar después (solo el administrador
+    // puede hacerlo) — borrarRecibo() marca recibo_borrado_en en este
+    // borrador para que no se quede mostrando "✓ Aprobado" para siempre
+    // como si el recibo real todavía existiera.
+    const fechaBorrado = p.recibo_borrado_en
+      ? new Date(p.recibo_borrado_en).toLocaleDateString('es-SV', {day:'2-digit',month:'2-digit',year:'numeric'})
+      : null;
+    const badge = fechaBorrado
+      ? `<span class="badge badge-red">🗑 Recibo No. ${p.recibo_final || ''} borrado el ${fechaBorrado}</span>`
+      : p.estado === 'aprobado'
+        ? `<span class="badge badge-green">✓ Aprobado · No. ${p.recibo_final || ''}</span>`
+        : p.estado === 'rechazado'
+          ? `<span class="badge badge-gray">✗ Rechazado</span>`
+          : `<span class="badge badge-amber">Pendiente</span>`;
     const acciones = (esAdmin && p.estado === 'pendiente')
       ? `<button class="btn btn-primary btn-sm" onclick="aprobarPendiente('${p._docId}')">✓ Aprobar</button>
          <button class="btn btn-secondary btn-sm" onclick="rechazarPendiente('${p._docId}')">✗ Rechazar</button>`
       : (p.estado === 'rechazado' && p.motivo_rechazo
           ? `<span style="font-size:11px;color:var(--text-muted)">Motivo: ${p.motivo_rechazo}</span>`
-          : '—');
+          : fechaBorrado && p.recibo_borrado_por
+            ? `<span style="font-size:11px;color:var(--text-muted)">Borrado por: ${p.recibo_borrado_por}</span>`
+            : '—');
 
     return `<tr>
       <td style="font-size:12px;color:var(--text-muted)">${fmtDate(p.fecha)}</td>
