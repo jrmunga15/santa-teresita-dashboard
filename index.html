@@ -643,6 +643,10 @@
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><path d="M1 7h14"/><path d="M4 11h3"/></svg>
       Pagos Recibidos
     </button>
+    <button class="nav-item" onclick="navigate('pendientes'); closeSidebar()">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 1.5"/></svg>
+      Pendientes
+    </button>
     <button class="nav-item" onclick="navigate('lotes'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 14L8 2l6 12H2z"/><path d="M5 14v-4h6v4"/></svg>
       Lotes
@@ -818,6 +822,27 @@
             </tr></thead>
             <tbody id="tbl-pagos"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: PENDIENTES DE APROBACIÓN -->
+    <div class="page" id="page-pendientes">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recibos Pendientes de Aprobación</span>
+          <span style="font-size:11px;color:var(--text-muted)">Un recibo enviado por un usuario limitado no cuenta en saldos ni dashboard hasta que se aprueba aquí</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Fecha</th><th>Lote</th><th>Lote-habiente</th><th>Concepto</th><th>Monto</th><th>Forma Pago</th><th>Enviado por</th><th>Estado</th><th>Acción</th>
+            </tr></thead>
+            <tbody id="tbl-pendientes-body"></tbody>
+          </table>
+        </div>
+        <div id="pendientes-empty" style="text-align:center;padding:40px;color:var(--text-muted);display:none">
+          No hay recibos pendientes de aprobación.
         </div>
       </div>
     </div>
@@ -1143,7 +1168,7 @@
 <div class="modal-overlay" id="modal-pago">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">Registrar Nuevo Pago</span>
+      <span class="modal-title" id="modal-pago-titulo">Registrar Nuevo Pago</span>
       <button class="modal-close" onclick="closeModal('modal-pago')">×</button>
     </div>
     <div class="modal-body">
@@ -1218,7 +1243,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-pago')">Cancelar</button>
-      <button class="btn btn-primary" onclick="registrarPago()">Guardar y Generar Recibo</button>
+      <button class="btn btn-primary" id="btn-registrar-pago" onclick="registrarPago()">Guardar y Generar Recibo</button>
     </div>
   </div>
 </div>
@@ -1659,6 +1684,11 @@ let lotes = catalogoLotes.map(c => ({
   cuota:          datosFinancieros[c.id]?.cuota    || 0,
 }));
 
+// Recibos enviados por un usuario limitado, esperando que el administrador
+// los apruebe (ver registrarPago(), aprobarPendiente()). No tiene datos de
+// seed — se llena por completo desde Firestore.
+let pagosPendientes = [];
+
 // Pagos — datos reales del Excel PAGOS_LOTEHABIENTES_v1.xlsx
 // Los pagos sin recibo del 27-30 mar 2026 se les asigna correlativo desde 26000062
 let pagos = [
@@ -1802,7 +1832,7 @@ function numeroALetras(num) {
 // ═══════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════
-const pageTitles = { dashboard:'Dashboard', clientes:'Lote-habientes', pagos:'Pagos Recibidos', lotes:'Lotes', recibos:'Recibos', saldos:'Saldos por Lote', amortizacion:'Amortización', cotizaciones:'Cotizaciones' };
+const pageTitles = { dashboard:'Dashboard', clientes:'Lote-habientes', pagos:'Pagos Recibidos', pendientes:'Pendientes', lotes:'Lotes', recibos:'Recibos', saldos:'Saldos por Lote', amortizacion:'Amortización', cotizaciones:'Cotizaciones' };
 function navigate(page) {
   if (page === 'dashboard' && window.esUsuarioLimitado) page = 'pagos';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1816,6 +1846,7 @@ function renderPage(page) {
   if (page === 'dashboard') renderDashboard();
   else if (page === 'clientes') renderClientes();
   else if (page === 'pagos') renderPagos();
+  else if (page === 'pendientes') renderPendientes();
   else if (page === 'lotes') renderLotes();
   else if (page === 'recibos') renderRecibos();
   else if (page === 'saldos') renderSaldos();
@@ -3393,6 +3424,15 @@ function setupModalPago() {
   document.getElementById('pago-monto').value = '';
   document.getElementById('pago-saldo').value = '';
   document.getElementById('pago-lote').innerHTML = '<option value="">—</option>';
+
+  // Un usuario limitado no registra el pago directo: lo envía a la cola de
+  // "Pendientes" para que el administrador lo confirme una vez haya recibido
+  // el dinero. El modal y el formulario son los mismos, solo cambia el
+  // destino del guardado (ver registrarPago()) y estos textos.
+  document.getElementById('modal-pago-titulo').textContent =
+    window.esUsuarioLimitado ? 'Enviar Recibo para Aprobación' : 'Registrar Nuevo Pago';
+  document.getElementById('btn-registrar-pago').textContent =
+    window.esUsuarioLimitado ? 'Enviar para Aprobación' : 'Guardar y Generar Recibo';
 }
 
 function filtrarClientesSearch(q) {
@@ -5409,6 +5449,11 @@ window.initFirestoreListeners = async function() {
     renderDashboard();
   });
 
+  onSnapshot(collection(db, 'pagos_pendientes'), snap => {
+    pagosPendientes = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+    renderPendientes();
+  });
+
   onSnapshot(collection(db, 'lotes'), snap => {
     const firestoreLotes = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
     lotes = catalogoLotes.map(cl => {
@@ -5527,9 +5572,34 @@ window.registrarPago = async function() {
     concepto = `${cuotasPagadas + 1}/${totalCuotas}`;
   }
 
+  const mes = mesFromFecha(fecha);
+
+  // Un usuario limitado no puede registrar el pago directo: queda pendiente
+  // de que el administrador lo apruebe desde "Pendientes" una vez haya
+  // confirmado que el dinero realmente ingresó. El saldo calculado aquí es
+  // solo una sugerencia para el administrador — se recalcula desde cero con
+  // el estado más actual de pagos al momento de aprobar (ver aprobarPendiente()).
+  if (window.esUsuarioLimitado) {
+    const borrador = {
+      cliente_id: cid, lote: loteId, concepto, monto, saldo_sugerido: saldo,
+      forma, fecha, mes, notas: notas || '',
+      estado: 'pendiente',
+      creado_por: window._currentUser?.email || '',
+      creado_en: new Date().toISOString(),
+    };
+    closeModal('modal-pago');
+    try {
+      await addDoc(collection(db, 'pagos_pendientes'), borrador);
+      alert('✅ Recibo enviado. Quedará registrado en cuanto el administrador lo apruebe.');
+    } catch(err) {
+      console.error('Error guardando pago pendiente:', err);
+      alert('Error al enviar el recibo. Intenta de nuevo.');
+    }
+    return;
+  }
+
   // Calculate renum BEFORE closing modal, using current pagos state
   const renum = getNextReciboNum();
-  const mes   = mesFromFecha(fecha);
 
   const nuevo = {
     recibo: String(renum),
@@ -5581,6 +5651,140 @@ window.registrarPago = async function() {
     alert('Error al guardar el pago. Intenta de nuevo.');
   }
 };
+
+// ═══════════════════════════════════════════════
+// RECIBOS PENDIENTES DE APROBACIÓN
+// ═══════════════════════════════════════════════
+function renderPendientes() {
+  const tbody = document.getElementById('tbl-pendientes-body');
+  if (!tbody) return;
+  const esAdmin = !window.esUsuarioLimitado;
+  const ordenados = [...pagosPendientes].sort((a,b) => (b.creado_en||'').localeCompare(a.creado_en||''));
+
+  document.getElementById('pendientes-empty').style.display = ordenados.length ? 'none' : 'block';
+
+  tbody.innerHTML = ordenados.map(p => {
+    const c = getCliente(p.cliente_id);
+    const badge = p.estado === 'aprobado'
+      ? `<span class="badge badge-green">✓ Aprobado · No. ${p.recibo_final || ''}</span>`
+      : p.estado === 'rechazado'
+        ? `<span class="badge badge-gray">✗ Rechazado</span>`
+        : `<span class="badge badge-amber">Pendiente</span>`;
+    const acciones = (esAdmin && p.estado === 'pendiente')
+      ? `<button class="btn btn-primary btn-sm" onclick="aprobarPendiente('${p._docId}')">✓ Aprobar</button>
+         <button class="btn btn-secondary btn-sm" onclick="rechazarPendiente('${p._docId}')">✗ Rechazar</button>`
+      : (p.estado === 'rechazado' && p.motivo_rechazo
+          ? `<span style="font-size:11px;color:var(--text-muted)">Motivo: ${p.motivo_rechazo}</span>`
+          : '—');
+
+    return `<tr>
+      <td style="font-size:12px;color:var(--text-muted)">${fmtDate(p.fecha)}</td>
+      <td style="font-weight:700">${p.lote}</td>
+      <td>${c.nombre || '—'}</td>
+      <td>${p.concepto}</td>
+      <td style="font-weight:600">${fmt(p.monto)}</td>
+      <td>${p.forma}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${p.creado_por || ''}</td>
+      <td>${badge}</td>
+      <td>${acciones}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Aprueba un recibo pendiente: recalcula el saldo desde el estado MÁS
+// ACTUAL de "pagos" (no el saldo_sugerido que vio el empleado al llenar el
+// formulario, por si mientras tanto se aprobó otro pago del mismo lote) y
+// crea el recibo real, con el mismo número correlativo y actualización de
+// estado del lote que registrarPago(). Solo el administrador puede llamarla;
+// el chequeo de window.esUsuarioLimitado aquí es una segunda defensa, la
+// real está en que el botón ni se muestra para un usuario limitado.
+async function aprobarPendiente(docId) {
+  if (window.esUsuarioLimitado) return;
+  const p = pagosPendientes.find(x => x._docId === docId);
+  if (!p || p.estado !== 'pendiente') return;
+
+  const c = getCliente(p.cliente_id);
+  if (!confirm(`¿Confirmas que ya recibiste ${fmt(p.monto)} de ${c.nombre || 'este lote-habiente'} (Lote ${p.lote})?\n\nEsto creará el recibo oficial.`)) return;
+
+  const db = window._db;
+  const { collection, doc, addDoc, setDoc } = window._fbFns;
+  const loteInfo = getLote(p.lote);
+
+  let concepto = p.concepto;
+  if (concepto === 'Plazo') {
+    const cuotasPagadas = pagos.filter(x => x.lote === p.lote && x.concepto?.includes('/')).length;
+    const totalCuotas = loteInfo.meses || 180;
+    concepto = `${cuotasPagadas + 1}/${totalCuotas}`;
+  }
+
+  let saldoFinal;
+  if (esConceptoInteresable(concepto)) {
+    const pagosDeLote = pagos.filter(x => x.lote === p.lote).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
+    const ultimoPago = pagosDeLote[pagosDeLote.length - 1];
+    const saldoAntes = ultimoPago ? ultimoPago.saldo : (loteInfo.valor || 0);
+    const tasa = loteInfo.tasa || 0.105;
+    saldoFinal = calcularNuevoSaldoPorMonto(saldoAntes, p.monto, tasa);
+  } else {
+    // Reserva/Contado/Pago Saldo/Otro no dependen del monto: se respeta lo
+    // que el empleado dejó como saldo sugerido para ese concepto.
+    saldoFinal = p.saldo_sugerido;
+  }
+
+  const renum = getNextReciboNum();
+  const mes = mesFromFecha(p.fecha);
+  const nuevo = {
+    recibo: String(renum), fecha: p.fecha, cliente_id: p.cliente_id, lote: p.lote,
+    concepto, monto: p.monto, saldo: saldoFinal, forma: p.forma, mes, notas: p.notas || ''
+  };
+
+  try {
+    await addDoc(collection(db, 'pagos'), nuevo);
+
+    const estadosVendido = ['Vendido a Plazo', 'Vendido Contado'];
+    if (loteInfo && !estadosVendido.includes(loteInfo.estado_plano)) {
+      const esPlazoCuota = /^\d+\/\d+$/.test(concepto);
+      const nuevoEstado = esPlazoCuota ? 'Vendido a Plazo' : 'Vendido Contado';
+      const docIdLote = loteInfo._docId || p.lote;
+      await setDoc(doc(collection(db, 'lotes'), docIdLote),
+        { id: p.lote, propietario_id: p.cliente_id, estado_plano: nuevoEstado }, { merge: true });
+    }
+
+    const { _docId, ...pSinDocId } = p;
+    await setDoc(doc(collection(db, 'pagos_pendientes'), docId), {
+      ...pSinDocId, estado: 'aprobado',
+      revisado_por: window._currentUser?.email || '',
+      revisado_en: new Date().toISOString(),
+      recibo_final: String(renum),
+    });
+
+    alert(`✅ Recibo aprobado y registrado con No. ${renum}`);
+  } catch(err) {
+    console.error('Error aprobando pago pendiente:', err);
+    alert('Error al aprobar el recibo. Intenta de nuevo.');
+  }
+}
+
+async function rechazarPendiente(docId) {
+  if (window.esUsuarioLimitado) return;
+  const p = pagosPendientes.find(x => x._docId === docId);
+  if (!p || p.estado !== 'pendiente') return;
+  const motivo = prompt('¿Por qué se rechaza este recibo? (opcional)') || '';
+
+  const db = window._db;
+  const { collection, doc, setDoc } = window._fbFns;
+  const { _docId, ...pSinDocId } = p;
+  try {
+    await setDoc(doc(collection(db, 'pagos_pendientes'), docId), {
+      ...pSinDocId, estado: 'rechazado',
+      revisado_por: window._currentUser?.email || '',
+      revisado_en: new Date().toISOString(),
+      motivo_rechazo: motivo,
+    });
+  } catch(err) {
+    console.error('Error rechazando pago pendiente:', err);
+    alert('Error al rechazar el recibo. Intenta de nuevo.');
+  }
+}
 
 // ── Override guardarCliente to save to Firestore ──
 const _origGuardarCliente = guardarCliente;
