@@ -1220,14 +1220,18 @@
             <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
             <input type="text" placeholder="Buscar descripción o proveedor..." oninput="filterCostos(this.value)">
           </div>
-          <select class="form-control" style="width:200px;height:34px;padding:0 10px;" onchange="filterCostosCategoria(this.value)">
+          <select class="form-control" style="width:220px;height:34px;padding:0 10px;" onchange="filterCostosCategoria(this.value)">
             <option value="">Todas las categorías</option>
-            <option>Terreno</option>
-            <option>Permisos/Legal</option>
-            <option>Infraestructura</option>
-            <option>Publicidad</option>
-            <option>Mano de obra</option>
-            <option>Otros</option>
+            <option>Honorarios Profesionales</option>
+            <option>Aranceles</option>
+            <option>Mano de Obra</option>
+            <option>Alquileres</option>
+            <option>Prestaciones de Ley</option>
+            <option>Tasas Alcaldia</option>
+            <option>Equipo Oficina</option>
+            <option>Materiales de Construcción</option>
+            <option>Comisiones por Venta</option>
+            <option>Gastos Varios</option>
           </select>
         </div>
         <button class="btn btn-primary btn-sm" onclick="abrirModalCosto()">+ Agregar Costo</button>
@@ -6350,12 +6354,16 @@ window.guardarEdicionPerfil = async function(cid) {
         <div class="form-group">
           <label class="form-label">Categoría</label>
           <select class="form-control" id="costo-categoria">
-            <option>Terreno</option>
-            <option>Permisos/Legal</option>
-            <option>Infraestructura</option>
-            <option>Publicidad</option>
-            <option>Mano de obra</option>
-            <option>Otros</option>
+            <option>Honorarios Profesionales</option>
+            <option>Aranceles</option>
+            <option>Mano de Obra</option>
+            <option>Alquileres</option>
+            <option>Prestaciones de Ley</option>
+            <option>Tasas Alcaldia</option>
+            <option>Equipo Oficina</option>
+            <option>Materiales de Construcción</option>
+            <option>Comisiones por Venta</option>
+            <option>Gastos Varios</option>
           </select>
         </div>
         <div class="form-group">
