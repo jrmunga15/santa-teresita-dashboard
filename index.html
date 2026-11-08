@@ -169,7 +169,8 @@
   body.usuario-limitado .nav-amortizacion,
   body.usuario-limitado .nav-cotizaciones,
   body.usuario-limitado #saldos-stats,
-  body.usuario-limitado .btn-borrar-recibo { display: none !important; }
+  body.usuario-limitado .btn-borrar-recibo,
+  body.usuario-limitado .btn-editar-recibo { display: none !important; }
   .sidebar-footer {
     padding: 16px 24px;
     border-top: 1px solid rgba(255,255,255,0.08);
@@ -1412,7 +1413,7 @@
     <div class="modal-body" id="ver-recibo-body"></div>
     <div class="modal-footer">
       <button class="btn btn-danger btn-sm btn-borrar-recibo" onclick="borrarRecibo()">🗑 Borrar</button>
-      <button class="btn btn-amber btn-sm" onclick="abrirEditarRecibo()">✏ Editar</button>
+      <button class="btn btn-amber btn-sm btn-editar-recibo" onclick="abrirEditarRecibo()">✏ Editar</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-ver-recibo')">Cerrar</button>
       <button class="btn btn-primary" onclick="imprimirRecibo()">📄 Descargar PDF</button>
     </div>
