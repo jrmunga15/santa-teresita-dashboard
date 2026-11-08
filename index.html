@@ -45,7 +45,7 @@
       window.esUsuarioLimitado = EMAILS_LIMITADOS.includes((user.email||'').toLowerCase());
       document.body.classList.toggle('usuario-limitado', window.esUsuarioLimitado);
       window.initFirestoreListeners();
-      if (window.esUsuarioLimitado && window.navigate) window.navigate('pagos');
+      if (window.esUsuarioLimitado && window.navigate) window.navigate('pendientes');
     } else {
       document.getElementById('login-screen').style.display = 'flex';
       document.getElementById('app-shell').style.display = 'none';
@@ -158,9 +158,18 @@
   .nav-item.active { color: #fff; background: rgba(255,255,255,0.1); font-weight: 500; }
   .nav-item .icon { width: 16px; height: 16px; opacity: 0.7; flex-shrink: 0; }
   .nav-item.active .icon { opacity: 1; }
-  /* Usuario limitado: sin Dashboard ni totales agregados en Saldos */
+  /* Usuario limitado: solo puede generar recibos (Registrar Pago, botón
+     global de la topbar), ver su cola de Pendientes, e imprimir en Recibos.
+     Todo lo demás queda oculto — ver también el guard en navigate(). */
   body.usuario-limitado .nav-dashboard,
-  body.usuario-limitado #saldos-stats { display: none !important; }
+  body.usuario-limitado .nav-clientes,
+  body.usuario-limitado .nav-pagos,
+  body.usuario-limitado .nav-lotes,
+  body.usuario-limitado .nav-saldos,
+  body.usuario-limitado .nav-amortizacion,
+  body.usuario-limitado .nav-cotizaciones,
+  body.usuario-limitado #saldos-stats,
+  body.usuario-limitado .btn-borrar-recibo { display: none !important; }
   .sidebar-footer {
     padding: 16px 24px;
     border-top: 1px solid rgba(255,255,255,0.08);
@@ -635,11 +644,11 @@
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
       Dashboard
     </button>
-    <button class="nav-item" onclick="navigate('clientes'); closeSidebar()">
+    <button class="nav-item nav-clientes" onclick="navigate('clientes'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M1 14c0-3.314 3.134-6 7-6s7 2.686 7 6"/></svg>
       Lote-habientes
     </button>
-    <button class="nav-item" onclick="navigate('pagos'); closeSidebar()">
+    <button class="nav-item nav-pagos" onclick="navigate('pagos'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><path d="M1 7h14"/><path d="M4 11h3"/></svg>
       Pagos Recibidos
     </button>
@@ -647,7 +656,7 @@
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 1.5"/></svg>
       Pendientes
     </button>
-    <button class="nav-item" onclick="navigate('lotes'); closeSidebar()">
+    <button class="nav-item nav-lotes" onclick="navigate('lotes'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 14L8 2l6 12H2z"/><path d="M5 14v-4h6v4"/></svg>
       Lotes
     </button>
@@ -655,15 +664,15 @@
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="1" width="10" height="14" rx="1"/><path d="M6 5h4M6 8h4M6 11h2"/></svg>
       Recibos
     </button>
-    <button class="nav-item" onclick="navigate('saldos'); closeSidebar()">
+    <button class="nav-item nav-saldos" onclick="navigate('saldos'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 11l4-4 3 3 4-5 3 2"/><path d="M1 14h14"/></svg>
       Saldos por Lote
     </button>
-    <button class="nav-item" onclick="navigate('amortizacion'); closeSidebar()">
+    <button class="nav-item nav-amortizacion" onclick="navigate('amortizacion'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="14" height="14" rx="1.5"/><path d="M4 5h8M4 8h6M4 11h4"/></svg>
       Amortización
     </button>
-    <button class="nav-item" onclick="navigate('cotizaciones'); closeSidebar()">
+    <button class="nav-item nav-cotizaciones" onclick="navigate('cotizaciones'); closeSidebar()">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h12v2H2zM2 6h8v2H2zM2 10h6v2H2z"/><circle cx="12" cy="11" r="3"/><path d="M11 11h2M12 10v2"/></svg>
       Cotizaciones
     </button>
@@ -1402,7 +1411,7 @@
     </div>
     <div class="modal-body" id="ver-recibo-body"></div>
     <div class="modal-footer">
-      <button class="btn btn-danger btn-sm" onclick="borrarRecibo()">🗑 Borrar</button>
+      <button class="btn btn-danger btn-sm btn-borrar-recibo" onclick="borrarRecibo()">🗑 Borrar</button>
       <button class="btn btn-amber btn-sm" onclick="abrirEditarRecibo()">✏ Editar</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-ver-recibo')">Cerrar</button>
       <button class="btn btn-primary" onclick="imprimirRecibo()">📄 Descargar PDF</button>
@@ -1833,8 +1842,13 @@ function numeroALetras(num) {
 // NAVIGATION
 // ═══════════════════════════════════════════════
 const pageTitles = { dashboard:'Dashboard', clientes:'Lote-habientes', pagos:'Pagos Recibidos', pendientes:'Pendientes', lotes:'Lotes', recibos:'Recibos', saldos:'Saldos por Lote', amortizacion:'Amortización', cotizaciones:'Cotizaciones' };
+// Un usuario limitado solo puede generar recibos (modal Registrar Pago),
+// ver su cola de Pendientes, e imprimir en Recibos. Esto es un segundo
+// candado (el primero es que el botón de cada página ni se muestra —
+// ver CSS "usuario-limitado"), por si algo llama a navigate() directo.
+const PAGINAS_PROHIBIDAS_LIMITADO = ['dashboard', 'clientes', 'pagos', 'lotes', 'saldos', 'amortizacion', 'cotizaciones'];
 function navigate(page) {
-  if (page === 'dashboard' && window.esUsuarioLimitado) page = 'pagos';
+  if (window.esUsuarioLimitado && PAGINAS_PROHIBIDAS_LIMITADO.includes(page)) page = 'pendientes';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
@@ -5974,15 +5988,15 @@ window.guardarEdicionPerfil = async function(cid) {
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
     Inicio
   </button>
-  <button class="mobile-nav-item" onclick="navigate('clientes');setMobileNav(this)">
+  <button class="mobile-nav-item nav-clientes" onclick="navigate('clientes');setMobileNav(this)">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M1 14c0-3.314 3.134-6 7-6s7 2.686 7 6"/></svg>
     Clientes
   </button>
-  <button class="mobile-nav-item" onclick="navigate('pagos');setMobileNav(this)">
+  <button class="mobile-nav-item nav-pagos" onclick="navigate('pagos');setMobileNav(this)">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><path d="M1 7h14"/><path d="M4 11h3"/></svg>
     Pagos
   </button>
-  <button class="mobile-nav-item" onclick="navigate('saldos');setMobileNav(this)">
+  <button class="mobile-nav-item nav-saldos" onclick="navigate('saldos');setMobileNav(this)">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 11l4-4 3 3 4-5 3 2"/><path d="M1 14h14"/></svg>
     Saldos
   </button>
