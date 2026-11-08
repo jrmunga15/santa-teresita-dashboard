@@ -168,6 +168,7 @@
   body.usuario-limitado .nav-saldos,
   body.usuario-limitado .nav-amortizacion,
   body.usuario-limitado .nav-cotizaciones,
+  body.usuario-limitado .nav-costos,
   body.usuario-limitado #saldos-stats,
   body.usuario-limitado .btn-borrar-recibo,
   body.usuario-limitado .btn-editar-recibo { display: none !important; }
@@ -677,6 +678,10 @@
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h12v2H2zM2 6h8v2H2zM2 10h6v2H2z"/><circle cx="12" cy="11" r="3"/><path d="M11 11h2M12 10v2"/></svg>
       Cotizaciones
     </button>
+    <button class="nav-item nav-costos" onclick="navigate('costos'); closeSidebar()">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5.5 6.5c0-1 1-1.5 2.5-1.5s2.5.5 2.5 1.4c0 1.9-5 .7-5 2.6 0 .9 1 1.5 2.5 1.5s2.5-.5 2.5-1.5"/></svg>
+      Costos
+    </button>
   </div>
   <div class="sidebar-footer">v1.0 · 2026</div>
 </nav>
@@ -728,6 +733,21 @@
           <div class="label">Lote-habientes</div>
           <div class="value" id="stat-clientes">0</div>
           <div class="sub"><span id="stat-al-dia">0</span> al día · <span id="stat-mora" style="color:var(--red)">0</span> en mora</div>
+        </div>
+      </div>
+
+      <!-- Row 1.5: Rentabilidad -->
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Rentabilidad</div>
+      <div class="stat-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:20px">
+        <div class="stat-card red" onclick="navigate('costos')" style="cursor:pointer" title="Ver costos">
+          <div class="label">Total Costos</div>
+          <div class="value" id="stat-total-costos">$0</div>
+          <div class="sub">desde el inicio de la lotificación</div>
+        </div>
+        <div class="stat-card green" onclick="navigate('costos')" style="cursor:pointer" title="Ver costos">
+          <div class="label">Utilidad Neta</div>
+          <div class="value" id="stat-utilidad-neta">$0</div>
+          <div class="sub">Total Recibido − Total Costos</div>
         </div>
       </div>
 
@@ -1166,6 +1186,62 @@
           </div>
         </div>
         <div id="cot-preview" style="padding:0 24px 24px"></div>
+      </div>
+    </div>
+
+    <!-- PAGE: COSTOS -->
+    <div class="page" id="page-costos">
+      <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+        <div class="stat-card red">
+          <div class="label">Total Costos</div>
+          <div class="value" id="costos-stat-total">$0</div>
+          <div class="sub">desde el inicio de la lotificación</div>
+        </div>
+        <div class="stat-card">
+          <div class="label" id="costos-stat-cat-1-label">—</div>
+          <div class="value" id="costos-stat-cat-1-valor">$0</div>
+          <div class="sub">categoría con más gasto</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Registros</div>
+          <div class="value" id="costos-stat-count">0</div>
+          <div class="sub">costos registrados</div>
+        </div>
+        <div class="stat-card green">
+          <div class="label">Utilidad Neta</div>
+          <div class="value" id="costos-stat-utilidad">$0</div>
+          <div class="sub">Total Recibido − Total Costos</div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center mb-4">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <div class="search-box">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
+            <input type="text" placeholder="Buscar descripción o proveedor..." oninput="filterCostos(this.value)">
+          </div>
+          <select class="form-control" style="width:200px;height:34px;padding:0 10px;" onchange="filterCostosCategoria(this.value)">
+            <option value="">Todas las categorías</option>
+            <option>Terreno</option>
+            <option>Permisos/Legal</option>
+            <option>Infraestructura</option>
+            <option>Publicidad</option>
+            <option>Mano de obra</option>
+            <option>Otros</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalCosto()">+ Agregar Costo</button>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Proveedor</th><th>Monto</th><th>Forma Pago</th><th>Acciones</th>
+            </tr></thead>
+            <tbody id="tbl-costos"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -1699,6 +1775,11 @@ let lotes = catalogoLotes.map(c => ({
 // seed — se llena por completo desde Firestore.
 let pagosPendientes = [];
 
+// Gastos de la lotificación (terreno, permisos, infraestructura, etc.),
+// completamente aparte de pagos/lotes. Solo lo ve el administrador — ver
+// EMAILS_LIMITADOS y firestore.rules. No tiene datos de seed.
+let costos = [];
+
 // Pagos — datos reales del Excel PAGOS_LOTEHABIENTES_v1.xlsx
 // Los pagos sin recibo del 27-30 mar 2026 se les asigna correlativo desde 26000062
 let pagos = [
@@ -1842,12 +1923,12 @@ function numeroALetras(num) {
 // ═══════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════
-const pageTitles = { dashboard:'Dashboard', clientes:'Lote-habientes', pagos:'Pagos Recibidos', pendientes:'Pendientes', lotes:'Lotes', recibos:'Recibos', saldos:'Saldos por Lote', amortizacion:'Amortización', cotizaciones:'Cotizaciones' };
+const pageTitles = { dashboard:'Dashboard', clientes:'Lote-habientes', pagos:'Pagos Recibidos', pendientes:'Pendientes', lotes:'Lotes', recibos:'Recibos', saldos:'Saldos por Lote', amortizacion:'Amortización', cotizaciones:'Cotizaciones', costos:'Costos' };
 // Un usuario limitado solo puede generar recibos (modal Registrar Pago),
 // ver su cola de Pendientes, e imprimir en Recibos. Esto es un segundo
 // candado (el primero es que el botón de cada página ni se muestra —
 // ver CSS "usuario-limitado"), por si algo llama a navigate() directo.
-const PAGINAS_PROHIBIDAS_LIMITADO = ['dashboard', 'clientes', 'pagos', 'lotes', 'saldos', 'amortizacion', 'cotizaciones'];
+const PAGINAS_PROHIBIDAS_LIMITADO = ['dashboard', 'clientes', 'pagos', 'lotes', 'saldos', 'amortizacion', 'cotizaciones', 'costos'];
 function navigate(page) {
   if (window.esUsuarioLimitado && PAGINAS_PROHIBIDAS_LIMITADO.includes(page)) page = 'pendientes';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1867,6 +1948,7 @@ function renderPage(page) {
   else if (page === 'saldos') renderSaldos();
   else if (page === 'amortizacion') initAmortizacion();
   else if (page === 'cotizaciones') initCotizaciones();
+  else if (page === 'costos') renderCostos();
 }
 
 // ═══════════════════════════════════════════════
@@ -2147,6 +2229,15 @@ function navegarLotesConFiltro(estado) {
 
 function renderDashboard() {
   const total = pagos.reduce((s,p) => s + (p.monto||0), 0);
+
+  // Rentabilidad: costos van en su propia colección (ver renderCostos()),
+  // nunca se mezclan con pagos/lotes.
+  const totalCostos = costos.reduce((s,c) => s + (c.monto||0), 0);
+  const utilidadNeta = total - totalCostos;
+  document.getElementById('stat-total-costos').textContent = fmt(totalCostos);
+  const utilidadEl = document.getElementById('stat-utilidad-neta');
+  utilidadEl.textContent = fmt(utilidadNeta);
+  utilidadEl.style.color = utilidadNeta < 0 ? 'var(--red)' : '';
 
   // Lote stats
   const total_lotes = lotes.length || 102;
@@ -5474,11 +5565,18 @@ window.initFirestoreListeners = async function() {
       return p;
     });
     renderDashboard();
+    renderCostos();
   });
 
   onSnapshot(collection(db, 'pagos_pendientes'), snap => {
     pagosPendientes = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
     renderPendientes();
+  });
+
+  onSnapshot(collection(db, 'costos'), snap => {
+    costos = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+    renderDashboard();
+    renderCostos();
   });
 
   onSnapshot(collection(db, 'lotes'), snap => {
@@ -5824,6 +5922,116 @@ async function rechazarPendiente(docId) {
   }
 }
 
+// ═══════════════════════════════════════════════
+// COSTOS DE LA LOTIFICACIÓN
+// ═══════════════════════════════════════════════
+let costosFilter = '', costosCategoriaFilter = '';
+function filterCostos(v) { costosFilter = v.toLowerCase(); renderCostos(); }
+function filterCostosCategoria(v) { costosCategoriaFilter = v; renderCostos(); }
+
+function renderCostos() {
+  const tbody = document.getElementById('tbl-costos');
+  if (!tbody) return;
+
+  const totalCostos = costos.reduce((s,c) => s + (c.monto||0), 0);
+  const totalRecibido = pagos.reduce((s,p) => s + (p.monto||0), 0);
+  document.getElementById('costos-stat-total').textContent = fmt(totalCostos);
+  document.getElementById('costos-stat-count').textContent = costos.length;
+  const utilidadEl = document.getElementById('costos-stat-utilidad');
+  const utilidad = totalRecibido - totalCostos;
+  utilidadEl.textContent = fmt(utilidad);
+  utilidadEl.style.color = utilidad < 0 ? 'var(--red)' : '';
+
+  const porCategoria = {};
+  costos.forEach(c => { porCategoria[c.categoria] = (porCategoria[c.categoria]||0) + (c.monto||0); });
+  const catTop = Object.entries(porCategoria).sort((a,b) => b[1]-a[1])[0];
+  document.getElementById('costos-stat-cat-1-label').textContent = catTop ? catTop[0] : '—';
+  document.getElementById('costos-stat-cat-1-valor').textContent = catTop ? fmt(catTop[1]) : '$0';
+
+  const filtered = costos.filter(c => {
+    const q = costosFilter;
+    const matchQ = !q || (c.descripcion||'').toLowerCase().includes(q) || (c.proveedor||'').toLowerCase().includes(q);
+    const matchCat = !costosCategoriaFilter || c.categoria === costosCategoriaFilter;
+    return matchQ && matchCat;
+  });
+
+  tbody.innerHTML = filtered
+    .sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''))
+    .map(c => `<tr>
+      <td style="font-size:12px;color:var(--text-muted)">${fmtDate(c.fecha)}</td>
+      <td>${badge(c.categoria)}</td>
+      <td>${c.descripcion||'—'}</td>
+      <td>${c.proveedor||'—'}</td>
+      <td style="font-weight:600;color:var(--red)">${fmt(c.monto)}</td>
+      <td>${c.forma||'—'}</td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="abrirModalCosto('${c._docId}')">✏ Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="borrarCosto('${c._docId}')">🗑 Borrar</button>
+      </td>
+    </tr>`).join('');
+}
+
+function abrirModalCosto(docId) {
+  const c = docId ? costos.find(x => x._docId === docId) : null;
+  document.getElementById('costo-doc-id').value = docId || '';
+  document.getElementById('modal-costo-titulo').textContent = c ? 'Editar Costo' : 'Agregar Costo';
+  document.getElementById('costo-categoria').value = c ? c.categoria : 'Terreno';
+  document.getElementById('costo-fecha').value = c ? c.fecha : new Date().toISOString().split('T')[0];
+  document.getElementById('costo-descripcion').value = c ? c.descripcion || '' : '';
+  document.getElementById('costo-monto').value = c ? c.monto || '' : '';
+  document.getElementById('costo-forma').value = c ? c.forma : 'Efectivo';
+  document.getElementById('costo-proveedor').value = c ? c.proveedor || '' : '';
+  document.getElementById('costo-notas').value = c ? c.notas || '' : '';
+  openModal('modal-costo');
+}
+
+async function guardarCosto() {
+  const docId = document.getElementById('costo-doc-id').value;
+  const categoria = document.getElementById('costo-categoria').value;
+  const fecha = document.getElementById('costo-fecha').value;
+  const descripcion = document.getElementById('costo-descripcion').value.trim();
+  const monto = parseFloat(document.getElementById('costo-monto').value) || 0;
+  const forma = document.getElementById('costo-forma').value;
+  const proveedor = document.getElementById('costo-proveedor').value.trim();
+  const notas = document.getElementById('costo-notas').value.trim();
+
+  if (!fecha || !descripcion || monto <= 0) {
+    alert('Completa fecha, descripción y un monto mayor a cero.');
+    return;
+  }
+
+  const nuevo = { categoria, fecha, descripcion, monto, forma, proveedor, notas };
+  const db = window._db;
+  const { collection, doc, addDoc, setDoc } = window._fbFns;
+
+  try {
+    if (docId) {
+      await setDoc(doc(collection(db, 'costos'), docId), nuevo, { merge: true });
+    } else {
+      await addDoc(collection(db, 'costos'), nuevo);
+    }
+    closeModal('modal-costo');
+  } catch(err) {
+    console.error('Error guardando costo:', err);
+    alert('Error al guardar el costo. Intenta de nuevo.');
+  }
+}
+
+async function borrarCosto(docId) {
+  const c = costos.find(x => x._docId === docId);
+  if (!c) return;
+  if (!confirm(`¿Borrar el costo "${c.descripcion}" (${fmt(c.monto)})?\n\nEsta acción no se puede deshacer.`)) return;
+
+  const db = window._db;
+  const { collection, doc, deleteDoc } = window._fbFns;
+  try {
+    await deleteDoc(doc(collection(db, 'costos'), docId));
+  } catch(err) {
+    console.error('Error borrando costo:', err);
+    alert('Error al borrar el costo. Intenta de nuevo.');
+  }
+}
+
 // ── Override guardarCliente to save to Firestore ──
 const _origGuardarCliente = guardarCliente;
 window.guardarCliente = async function() {
@@ -6125,6 +6333,69 @@ window.guardarEdicionPerfil = async function(cid) {
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-asignar-propietario')">Cancelar</button>
       <button class="btn btn-primary" onclick="confirmarAsignarPropietario()">✓ Asignar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Agregar/Editar Costo -->
+<div class="modal-overlay" id="modal-costo">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-costo-titulo">Agregar Costo</span>
+      <button class="modal-close" onclick="closeModal('modal-costo')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="costo-doc-id" value="">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Categoría</label>
+          <select class="form-control" id="costo-categoria">
+            <option>Terreno</option>
+            <option>Permisos/Legal</option>
+            <option>Infraestructura</option>
+            <option>Publicidad</option>
+            <option>Mano de obra</option>
+            <option>Otros</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha</label>
+          <input type="date" class="form-control" id="costo-fecha">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción</label>
+        <input type="text" class="form-control" id="costo-descripcion" placeholder="Ej. Pago de mensura, compra de tubería...">
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Monto ($)</label>
+          <input type="number" class="form-control" id="costo-monto" placeholder="0.00" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Forma de Pago</label>
+          <select class="form-control" id="costo-forma">
+            <option>Efectivo</option>
+            <option>Transferencia</option>
+            <option>Cheque</option>
+            <option>Agrícola</option>
+            <option>BAC</option>
+            <option>Cuscatlán</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Proveedor / Beneficiario</label>
+        <input type="text" class="form-control" id="costo-proveedor" placeholder="Opcional">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notas adicionales</label>
+        <input type="text" class="form-control" id="costo-notas" placeholder="Observaciones...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-costo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCosto()">Guardar Costo</button>
     </div>
   </div>
 </div>

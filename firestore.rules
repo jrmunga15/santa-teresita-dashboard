@@ -49,5 +49,12 @@ service cloud.firestore {
       allow read: if estaAutenticado();
       allow write: if estaAutenticado() && !esLimitado();
     }
+
+    // Gastos de la lotificación: a diferencia de clientes/lotes/pagos, nada
+    // más en la app necesita leer esta colección, así que un correo
+    // limitado no puede ni siquiera leerla (no solo que la UI se la oculte).
+    match /costos/{id} {
+      allow read, write: if estaAutenticado() && !esLimitado();
+    }
   }
 }

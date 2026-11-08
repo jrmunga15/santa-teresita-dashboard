@@ -32,6 +32,7 @@ Three Firestore collections, mirrored as in-memory arrays:
 | `pagos` | `pagos` | Payment records (recibo number, amount, date, balance) |
 | `pagosPendientes` | `pagos_pendientes` | Draft receipts awaiting admin approval — see "Roles" below. Never merged into `pagos`; approving one creates a brand-new `pagos` doc. |
 | `lotes` | `lotes` | Lot status and ownership overrides |
+| `costos` | `costos` | Project-wide lotificación expenses (land, permits, infrastructure...). Admin-only, completely separate from `pagos`/`lotes` — see "Costos" below. |
 
 Two additional **static/hardcoded** arrays that never go to Firestore:
 
@@ -59,6 +60,7 @@ Navigation via `navigate(page)` (line ~1673). Pages are `<div class="page">` ele
 - `saldos` — running balance per lot with full payment history
 - `amortizacion` — 180-installment amortization tables (precalculated per lot)
 - `cotizaciones` — quote generator for prospective buyers
+- `costos` — ledger of lotificación expenses (admin-only; see "Costos" below)
 
 ### Key Global Functions
 
@@ -73,13 +75,20 @@ Navigation via `navigate(page)` (line ~1673). Pages are `<div class="page">` ele
 
 ### Roles & Approval Queue
 
-- `EMAILS_LIMITADOS` (top of the `<script type="module">` block) lists emails with restricted access. A limited account can only: generate a receipt (the "+ Registrar Pago" button, always in the topbar regardless of page), track it in **Pendientes**, and print an already-approved one in **Recibos**. Dashboard, Lote-habientes, Pagos Recibidos, Lotes, Saldos por Lote, Amortización and Cotizaciones are all hidden from its nav (`PAGINAS_PROHIBIDAS_LIMITADO` in `navigate()`, plus the matching `.nav-*` CSS classes under `body.usuario-limitado`).
+- `EMAILS_LIMITADOS` (top of the `<script type="module">` block) lists emails with restricted access. A limited account can only: generate a receipt (the "+ Registrar Pago" button, always in the topbar regardless of page), track it in **Pendientes**, and print an already-approved one in **Recibos**. Dashboard, Lote-habientes, Pagos Recibidos, Lotes, Saldos por Lote, Amortización, Cotizaciones and Costos are all hidden from its nav (`PAGINAS_PROHIBIDAS_LIMITADO` in `navigate()`, plus the matching `.nav-*` CSS classes under `body.usuario-limitado`).
 - `registrarPago()` sends a limited account's receipts to `pagos_pendientes` (status `pendiente`) instead of writing `pagos` directly.
 - A limited account also can't see the "🗑 Borrar" or "✏ Editar" buttons on an existing recibo (`.btn-borrar-recibo`/`.btn-editar-recibo`, hidden by the same CSS) — not that they'd work anyway, since `firestore.rules` already denies it any write (create/update/delete) on `pagos`. The admin account is never given the `usuario-limitado` body class, so it keeps both buttons and full write access, before and after a recibo is approved.
 - If the admin later deletes a `pagos` doc that came from an approved `pagos_pendientes` draft, `borrarRecibo()` finds that draft (matched by `recibo_final`) and stamps `recibo_borrado_en`/`recibo_borrado_por` on it instead of leaving it silently stuck showing "✓ Aprobado" for a recibo that no longer exists — `renderPendientes()` then shows a "🗑 Recibo No. X borrado el DD/MM/YYYY" badge instead.
 - Everyone can see the **Pendientes** page; only non-limited (admin) accounts get the "Aprobar"/"Rechazar" buttons there (`renderPendientes()`).
 - `aprobarPendiente(docId)` does NOT trust the `saldo_sugerido` the limited user saw at draft time — it recomputes the saldo from the *current* `pagos` state using the shared `esConceptoInteresable()`/`calcularNuevoSaldoPorMonto()` helpers, in case another payment for the same lote was approved in the meantime. Only then does it create the real `pagos` doc and assign the recibo number.
 - This in-app gating is UI-only. The matching enforcement lives in `firestore.rules` (see below) — **the email list in both files must be kept in sync by hand**, there's no shared source of truth between them.
+
+### Costos
+
+- Simple admin-only expense ledger (`costos` collection), unrelated to any lote or pago — tracks project-wide spend (Terreno, Permisos/Legal, Infraestructura, Publicidad, Mano de obra, Otros) since the lotificación started.
+- `abrirModalCosto(docId?)` / `guardarCosto()` / `borrarCosto(docId)` handle the single add/edit modal (`modal-costo`) and deletion — no approval flow, since only the admin can ever reach this page.
+- The Dashboard's "Rentabilidad" row and the Costos page itself both show **Utilidad Neta** = `pagos` total − `costos` total, turning red when negative (`renderDashboard()`, `renderCostos()`).
+- Unlike `pagos`/`lotes`/`clientes`, nothing else in the app reads `costos`, so `firestore.rules` denies a limited email even `read` access to it, not just `write`.
 
 ### Firestore Security Rules
 
