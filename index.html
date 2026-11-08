@@ -981,6 +981,43 @@
         </div>
       </div>
 
+      <!-- Simulador: pagar con un abono mensual mayor al de la cuota oficial -->
+      <div class="card mb-4" id="amort-sim-card" style="display:none">
+        <div class="card-header">
+          <span class="card-title">Simular con un abono mensual mayor</span>
+        </div>
+        <div style="padding:16px 20px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Nuevo abono mensual ($)</label>
+            <input type="number" class="form-control" id="amort-sim-monto" style="width:180px" step="0.01" placeholder="0.00">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="simularAmortizacion()">Simular</button>
+          <button class="btn btn-secondary btn-sm no-print" id="amort-sim-print-btn" style="display:none" onclick="printSimulacionAmortizacion()">📄 Descargar PDF</button>
+        </div>
+        <div id="amort-sim-error" style="display:none;padding:0 20px 16px;color:var(--red);font-size:13px"></div>
+        <div id="amort-sim-resultado" style="display:none;padding:0 20px 20px">
+          <div class="card" style="background:var(--accent-pale);border:none;margin-bottom:16px">
+            <div style="padding:14px 18px;font-size:14px" id="amort-sim-resumen"></div>
+          </div>
+          <div class="table-wrap" style="max-height:500px;overflow-y:auto">
+            <table id="tbl-amort-sim">
+              <thead style="position:sticky;top:0;z-index:2">
+                <tr>
+                  <th>N° Cuota</th>
+                  <th>Fecha de Pago</th>
+                  <th>Saldo Anterior</th>
+                  <th>Abono</th>
+                  <th>Intereses</th>
+                  <th>Abono Capital</th>
+                  <th>Nuevo Saldo</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-amort-sim-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- Full 180-row table -->
       <div class="card" id="amort-table-card" style="display:none">
         <div class="card-header">
@@ -3184,6 +3221,156 @@ function printAmortizacion() {
     '<div style="margin-top:8px;font-size:8px;color:#999;text-align:center">Parcelación Santa Teresita 2 · Tabla de amortización · ' + new Date().toLocaleDateString('es-SV') + '</div>'
   );
 }
+
+// ═══════════════════════════════════════════════
+// SIMULADOR DE AMORTIZACIÓN (abono mensual mayor)
+// ═══════════════════════════════════════════════
+let _amortSimActual = null;
+
+function resetSimulacionAmortizacion() {
+  _amortSimActual = null;
+  const montoInput = document.getElementById('amort-sim-monto');
+  if (montoInput) montoInput.value = '';
+  document.getElementById('amort-sim-error').style.display = 'none';
+  document.getElementById('amort-sim-resultado').style.display = 'none';
+  document.getElementById('amort-sim-print-btn').style.display = 'none';
+}
+
+// Projects a lote's payoff forward from its real saldo actual (not the
+// original financiado) using a fixed custom monthly abono, applying the same
+// interés/capital formula used everywhere else (calcSaldoLote,
+// calcularNuevoSaldoPorMonto). The last cuota is capped to exactly what's
+// left owed, so the simulation doesn't show the client overpaying.
+function generarSimulacionAmortizacion(loteId, montoMensual) {
+  const loteInfo = getLote(loteId);
+  if (!loteInfo) return { error: 'Lote no encontrado.' };
+
+  const { saldoActual } = calcSaldoLote(loteId);
+  if (saldoActual <= 0.01) return { error: 'Este lote ya está completamente pagado.' };
+
+  const tasa = loteInfo.tasa || 0.105;
+  const tm = tasa / 12;
+  const interesInicial = Math.round(saldoActual * tm * 100) / 100;
+  if (montoMensual <= interesInicial) {
+    return { error: `El abono debe ser mayor a ${fmt(interesInicial)} (los intereses del primer mes) para que el saldo pueda bajar.` };
+  }
+
+  const pagosDeLote = pagos.filter(p => p.lote === loteId)
+    .sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
+  const cuotasPagadas = pagosDeLote.filter(p => p.concepto?.includes('/') || p.concepto === 'Abono').length;
+
+  const filas = [];
+  let saldo = saldoActual;
+  let numCuota = cuotasPagadas + 1;
+  const LIMITE_CUOTAS = 1200; // tope de seguridad (100 años) ante una tasa/monto inválidos
+  while (saldo > 0.01 && filas.length < LIMITE_CUOTAS) {
+    const interes = Math.round(saldo * tm * 100) / 100;
+    const abono = Math.min(montoMensual, Math.round((saldo + interes) * 100) / 100);
+    const capital = Math.round((abono - interes) * 100) / 100;
+    const nuevoSaldo = Math.max(0, Math.round((saldo - capital) * 100) / 100);
+    filas.push({ numCuota, fecha: getFechaCuota(loteId, numCuota), saldoAnterior: saldo, abono, interes, capital, saldo: nuevoSaldo });
+    saldo = nuevoSaldo;
+    numCuota++;
+  }
+
+  return { filas, cuotasNecesarias: filas.length, fechaFin: filas.length ? filas[filas.length-1].fecha : null, cuotasPagadas };
+}
+
+function simularAmortizacion() {
+  const loteId = document.getElementById('amort-select-lote').value;
+  if (!loteId) return;
+
+  const monto = parseFloat(document.getElementById('amort-sim-monto').value) || 0;
+  const errorDiv = document.getElementById('amort-sim-error');
+  const resultDiv = document.getElementById('amort-sim-resultado');
+  const printBtn = document.getElementById('amort-sim-print-btn');
+
+  if (monto <= 0) {
+    errorDiv.textContent = 'Ingresa el monto del abono mensual.';
+    errorDiv.style.display = 'block';
+    resultDiv.style.display = 'none';
+    printBtn.style.display = 'none';
+    return;
+  }
+
+  const sim = generarSimulacionAmortizacion(loteId, monto);
+  if (sim.error) {
+    errorDiv.textContent = sim.error;
+    errorDiv.style.display = 'block';
+    resultDiv.style.display = 'none';
+    printBtn.style.display = 'none';
+    return;
+  }
+  errorDiv.style.display = 'none';
+
+  const loteInfo = getLote(loteId);
+  const totalCuotasOriginal = loteInfo.meses || 0;
+  const cuotasRestantesOriginal = Math.max(0, totalCuotasOriginal - sim.cuotasPagadas);
+  const ahorro = cuotasRestantesOriginal - sim.cuotasNecesarias;
+
+  let resumen = `Con un abono de <strong>${fmt(monto)}</strong>/mes, el lote quedaría totalmente pagado en <strong>${sim.cuotasNecesarias} cuota${sim.cuotasNecesarias === 1 ? '' : 's'} más</strong>`;
+  resumen += sim.fechaFin ? ` (aprox. el ${sim.fechaFin}).` : '.';
+  if (ahorro > 0) {
+    resumen += ` Son ${ahorro} cuota${ahorro === 1 ? '' : 's'} antes de lo planeado originalmente (quedaban ${cuotasRestantesOriginal}).`;
+  }
+  document.getElementById('amort-sim-resumen').innerHTML = resumen;
+
+  document.getElementById('tbl-amort-sim-body').innerHTML = sim.filas.map(f => `
+    <tr>
+      <td style="font-weight:500">${f.numCuota}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${f.fecha}</td>
+      <td>${fmt(f.saldoAnterior)}</td>
+      <td style="font-weight:600">${fmt(f.abono)}</td>
+      <td style="color:var(--amber)">$${f.interes.toFixed(2)}</td>
+      <td style="color:var(--blue)">$${f.capital.toFixed(2)}</td>
+      <td style="font-weight:600">${fmt(f.saldo)}</td>
+    </tr>`).join('');
+
+  resultDiv.style.display = 'block';
+  printBtn.style.display = 'inline-block';
+
+  _amortSimActual = { loteId, monto, sim };
+}
+
+function printSimulacionAmortizacion() {
+  if (!_amortSimActual) return;
+  const { loteId, monto, sim } = _amortSimActual;
+  const loteInfo = getLote(loteId);
+  const c = loteInfo.propietario_id ? getCliente(loteInfo.propietario_id) : null;
+
+  const rows = sim.filas.map(f =>
+    '<tr>' +
+    '<td style="text-align:center;border:1px solid #ddd;padding:2px 4px">' + f.numCuota + '</td>' +
+    '<td style="text-align:center;border:1px solid #ddd;padding:2px 4px">' + f.fecha + '</td>' +
+    '<td style="text-align:right;border:1px solid #ddd;padding:2px 4px">' + fmt(f.saldoAnterior) + '</td>' +
+    '<td style="text-align:right;border:1px solid #ddd;padding:2px 4px;font-weight:600">' + fmt(f.abono) + '</td>' +
+    '<td style="text-align:right;border:1px solid #ddd;padding:2px 4px">$' + f.interes.toFixed(2) + '</td>' +
+    '<td style="text-align:right;border:1px solid #ddd;padding:2px 4px">$' + f.capital.toFixed(2) + '</td>' +
+    '<td style="text-align:right;border:1px solid #ddd;padding:2px 4px;font-weight:600">' + fmt(f.saldo) + '</td>' +
+    '</tr>'
+  ).join('');
+
+  printWindow(
+    '<div style="display:flex;justify-content:space-between;margin-bottom:12px;border-bottom:2px solid #2d6a4f;padding-bottom:8px">' +
+    '<div><div style="font-size:15px;font-weight:700;color:#2d6a4f">Parcelación Santa Teresita 2</div>' +
+    '<div style="font-size:10px;color:#666">Ahuachapán, El Salvador · muzzoloinversiones@yahoo.com</div></div>' +
+    '<div style="text-align:right"><div style="font-size:13px;font-weight:700">SIMULACIÓN DE AMORTIZACIÓN</div>' +
+    '<div style="font-size:10px;color:#666">Lote ' + loteId + ' · ' + (c ? c.nombre : '') + '</div>' +
+    '<div style="font-size:10px;color:#666">Impreso: ' + new Date().toLocaleDateString('es-SV') + '</div></div></div>' +
+    '<div style="font-size:10px;margin-bottom:10px">Simulación con un abono mensual de <strong>' + fmt(monto) + '</strong>. Quedaría pagado en <strong>' + sim.cuotasNecesarias + ' cuota' + (sim.cuotasNecesarias === 1 ? '' : 's') + '</strong>' + (sim.fechaFin ? ' (aprox. el ' + sim.fechaFin + ')' : '') + '.</div>' +
+    '<table style="font-size:9px"><thead><tr>' +
+    '<th style="border:1px solid #ddd;padding:3px 4px;text-align:center">N°</th>' +
+    '<th style="border:1px solid #ddd;padding:3px 4px;text-align:center">Fecha</th>' +
+    '<th style="border:1px solid #ddd;padding:3px 4px;text-align:right">Saldo Ant.</th>' +
+    '<th style="border:1px solid #ddd;padding:3px 4px;text-align:right">Abono</th>' +
+    '<th style="border:1px solid #ddd;padding:3px 4px;text-align:right">Intereses</th>' +
+    '<th style="border:1px solid #ddd;padding:3px 4px;text-align:right">Capital</th>' +
+    '<th style="border:1px solid #ddd;padding:3px 4px;text-align:right">Nuevo Saldo</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table>' +
+    '<div style="margin-top:8px;font-size:8px;color:#999;text-align:center">Simulación informativa · no sustituye la tabla de amortización oficial del lote · ' + new Date().toLocaleDateString('es-SV') + '</div>'
+  );
+}
+
 // ═══════════════════════════════════════════════
 // MODAL PAGO
 // ═══════════════════════════════════════════════
@@ -5039,16 +5226,23 @@ function renderAmortizacion(loteId) {
   const statsDiv = document.getElementById('amort-stats');
   const progressCard = document.getElementById('amort-progress-card');
   const tableCard = document.getElementById('amort-table-card');
+  const simCard = document.getElementById('amort-sim-card');
+
+  // Reset the "abono mayor" simulator whenever the selected lote changes —
+  // a simulation from a previous lote shouldn't linger when you switch.
+  resetSimulacionAmortizacion();
 
   if (!loteId) {
     empty.style.display = 'block';
     statsDiv.innerHTML = ''; statsDiv.style.display = 'none';
-    progressCard.style.display = 'none'; tableCard.style.display = 'none';
+    progressCard.style.display = 'none'; tableCard.style.display = 'none'; simCard.style.display = 'none';
     return;
   }
 
   const tabla = getAmortTable(loteId);
   if (!tabla) return;
+
+  simCard.style.display = 'block';
 
   const loteInfo = getLote(loteId);
   const c = loteInfo.propietario_id ? getCliente(loteInfo.propietario_id) : null;
