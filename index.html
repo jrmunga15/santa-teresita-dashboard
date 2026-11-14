@@ -330,6 +330,24 @@
   .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
   .modal-close { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 20px; line-height: 1; }
 
+  /* ─── MENSAJE DE CONFIRMACIÓN (toast) ───
+     Reemplaza el alert() del navegador para confirmar que algo se guardó/
+     eliminó: no bloquea, se cierra solo y usa letra grande, para que no
+     haya que leer texto chico ni tocar un botón "Aceptar" con precisión. */
+  .toast-confirmacion {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+    z-index: 500; max-width: min(92vw, 420px);
+    background: var(--accent); color: #fff;
+    padding: 16px 22px; border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    font-size: 15px; font-weight: 500; line-height: 1.4;
+    display: flex; align-items: flex-start; gap: 10px;
+    opacity: 0; transition: opacity 0.25s, transform 0.25s;
+    cursor: pointer;
+  }
+  .toast-confirmacion.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast-confirmacion .toast-icono { font-size: 18px; line-height: 1.4; flex-shrink: 0; }
+
   /* ─── RECIBO MUZZOLO STYLE ─── */
   .recibo-wrap {
     font-family: 'DM Sans', sans-serif;
@@ -3245,7 +3263,7 @@ async function guardarEdicionRecibo() {
   renderDashboard();
   renderPagos();
   renderRecibos();
-  alert('✅ Recibo actualizado.');
+  mostrarMensaje('Recibo actualizado.');
 }
 
 async function borrarRecibo() {
@@ -3277,7 +3295,7 @@ async function borrarRecibo() {
   renderDashboard();
   renderPagos();
   renderRecibos();
-  alert('🗑 Recibo eliminado.');
+  mostrarMensaje('Recibo eliminado.', '🗑');
 }
 
 function previewRecibo(id) {
@@ -3612,12 +3630,44 @@ function printSimulacionAmortizacion() {
 // MODAL PAGO
 // ═══════════════════════════════════════════════
 function openModal(id) {
-  document.getElementById(id).classList.add('open');
+  const modal = document.getElementById(id);
+  modal.classList.add('open');
   if (id === 'modal-pago') setupModalPago();
   if (id === 'modal-generar-recibo') renderRecibos();
   if (id === 'modal-cliente') setupModalCliente();
+  // Enfoca el primer campo editable y visible del formulario para que, en
+  // celular, el teclado aparezca de una vez sin tener que tocar primero
+  // dónde escribir -- pensado para alguien que no es muy ágil con el celular.
+  const campos = modal.querySelectorAll('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+  for (const campo of campos) {
+    if (campo.offsetParent !== null) { campo.focus(); break; }
+  }
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Mensaje de confirmación grande y no-bloqueante (reemplaza alert() para
+// avisos de "listo, se guardó/eliminó"), para que no haya que leer texto
+// chico ni tocar con precisión un botón "Aceptar". Se cierra solo; un toque
+// la cierra antes si hace falta.
+let _toastTimer = null;
+function mostrarMensaje(texto, icono = '✓') {
+  let toast = document.getElementById('toast-confirmacion');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast-confirmacion';
+    toast.className = 'toast-confirmacion';
+    toast.onclick = () => ocultarMensaje();
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = `<span class="toast-icono">${icono}</span><span>${texto}</span>`;
+  clearTimeout(_toastTimer);
+  requestAnimationFrame(() => toast.classList.add('visible'));
+  _toastTimer = setTimeout(ocultarMensaje, 3800);
+}
+function ocultarMensaje() {
+  clearTimeout(_toastTimer);
+  document.getElementById('toast-confirmacion')?.classList.remove('visible');
+}
 
 function setupModalPago() {
   // Reset search field
@@ -3844,7 +3894,7 @@ function registrarPago() {
 
   closeModal('modal-pago');
   renderDashboard();
-  alert(`✅ Pago registrado con Recibo No. ${renum}`);
+  mostrarMensaje(`Pago registrado. Recibo No. ${renum}.`);
   setTimeout(() => verRecibo(nuevo.id), 100);
 }
 
@@ -4107,7 +4157,7 @@ async function confirmarAsignarPropietario() {
   renderLotes();
   renderDashboard();
   const c = getCliente(cid);
-  alert(`✅ Lote ${loteId} asignado a ${c.nombre}`);
+  mostrarMensaje(`Lote ${loteId} asignado a ${c.nombre}.`);
 }
 
 function guardarCliente() {
@@ -4165,7 +4215,7 @@ function guardarCliente() {
   closeModal('modal-cliente');
   renderClientes();
   document.getElementById('stat-clientes').textContent = clientes.length;
-  alert(`✅ Lote-habiente registrado: ${codigo} — ${nombre}${loteId ? '\nLote ' + loteId + ' asignado.' : ''}`);
+  mostrarMensaje(`Lote-habiente registrado: ${nombre} (${codigo}).${loteId ? ' Lote ' + loteId + ' asignado.' : ''}`);
 }
 
 // ═══════════════════════════════════════════════
@@ -4375,7 +4425,7 @@ function borrarPerfilCliente() {
   closeModal('modal-perfil-cliente');
   renderDashboard();
   renderClientes();
-  alert(`✅ Perfil de ${c.nombre} eliminado.${misLotes.length ? '\nLotes liberados: ' + misLotes.map(l=>l.id).join(', ') : ''}`);
+  mostrarMensaje(`Perfil de ${c.nombre} eliminado.${misLotes.length ? ' Lotes liberados: ' + misLotes.map(l=>l.id).join(', ') + '.' : ''}`, '🗑');
 }
 
 function verPerfilCliente(cid) {
@@ -5922,7 +5972,7 @@ window.registrarPago = async function() {
     closeModal('modal-pago');
     try {
       await addDoc(collection(db, 'pagos_pendientes'), borrador);
-      alert('✅ Recibo enviado. Quedará registrado en cuanto el administrador lo apruebe.');
+      mostrarMensaje('Recibo enviado. Quedará registrado cuando el administrador lo apruebe.');
     } catch(err) {
       console.error('Error guardando pago pendiente:', err);
       alert('Error al enviar el recibo. Intenta de nuevo.');
@@ -5961,7 +6011,7 @@ window.registrarPago = async function() {
       }
     }
 
-    alert(`✅ Pago registrado con Recibo No. ${renum}`);
+    mostrarMensaje(`Pago registrado. Recibo No. ${renum}.`);
 
     // Wait for onSnapshot to update pagos array, then find by recibo number
     let intentos = 0;
@@ -6095,7 +6145,7 @@ async function aprobarPendiente(docId) {
       recibo_final: String(renum),
     });
 
-    alert(`✅ Recibo aprobado y registrado con No. ${renum}`);
+    mostrarMensaje(`Recibo aprobado. Recibo No. ${renum}.`);
   } catch(err) {
     console.error('Error aprobando pago pendiente:', err);
     alert('Error al aprobar el recibo. Intenta de nuevo.');
@@ -6314,8 +6364,8 @@ window.guardarCliente = async function() {
   renderLotes();
   renderDashboard();
   document.getElementById('stat-clientes').textContent = clientes.length;
-  const lotesStr = lotesAsignados.length ? '\nLotes asignados: ' + lotesAsignados.join(', ') : '';
-  alert(`✅ Lote-habiente registrado: ${codigo} — ${nombre}${lotesStr}`);
+  const lotesStr = lotesAsignados.length ? ' Lotes asignados: ' + lotesAsignados.join(', ') + '.' : '';
+  mostrarMensaje(`Lote-habiente registrado: ${nombre} (${codigo}).${lotesStr}`);
 };
 
 // ── Override guardarEdicionPerfil to save to Firestore ──
