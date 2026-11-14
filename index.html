@@ -3713,41 +3713,44 @@ function onConceptoChange() {
 function autoFillMontoSaldo(concepto, loteInfo, saldoActual) {
   const montoField = document.getElementById('pago-monto');
   const saldoField = document.getElementById('pago-saldo');
+  let montoSugerido = 0;
 
   // Dynamic cuota: "N/180" or "N/44"
   if (concepto && /^\d+\/\d+$/.test(concepto)) {
-    montoField.value = loteInfo.cuota > 0 ? loteInfo.cuota.toFixed(2) : '';
+    montoSugerido = loteInfo.cuota || 0;
     montoField.readOnly = false;
-    const tasa = loteInfo.tasa || 0.105;
-    const intereses = Math.round(saldoActual * (tasa/12) * 100) / 100;
-    const capital = Math.round(((loteInfo.cuota || 0) - intereses) * 100) / 100;
-    const nuevoSaldo = Math.round((saldoActual - capital) * 100) / 100;
-    saldoField.value = nuevoSaldo > 0 ? nuevoSaldo.toFixed(2) : '0.00';
   } else if (concepto === 'Reserva') {
-    montoField.value = loteInfo.reserva > 0 ? loteInfo.reserva.toFixed(2) : '';
-    saldoField.value = loteInfo.financiar > 0 ? loteInfo.financiar.toFixed(2) : '';
+    montoSugerido = loteInfo.reserva || 0;
   } else if (concepto === 'Pago Saldo') {
-    montoField.value = saldoActual > 0 ? saldoActual.toFixed(2) : '';
-    saldoField.value = '0.00';
+    montoSugerido = saldoActual || 0;
   } else if (concepto === 'Contado') {
-    montoField.value = loteInfo.valor > 0 ? loteInfo.valor.toFixed(2) : '';
-    saldoField.value = '0.00';
-  } else {
-    montoField.value = '';
-    saldoField.value = saldoActual > 0 ? saldoActual.toFixed(2) : '';
+    montoSugerido = loteInfo.valor || 0;
   }
+  montoField.value = montoSugerido > 0 ? montoSugerido.toFixed(2) : '';
+
+  // Misma formula que calcularSaldoEsperado() usa al guardar (ver
+  // registrarPago()), para que lo que se ve en pantalla sea siempre igual a
+  // lo que realmente se va a guardar. 'Otro' no tiene formula fija (null) --
+  // ahi se deja el saldo actual del lote como referencia, sin forzar nada.
+  const saldoCalculado = calcularSaldoEsperado(concepto, loteInfo, saldoActual, montoSugerido);
+  saldoField.value = saldoCalculado !== null
+    ? saldoCalculado.toFixed(2)
+    : (saldoActual > 0 ? saldoActual.toFixed(2) : '');
 }
 
-// Recalculates "Saldo Pendiente" live as the admin types a Monto that differs
-// from the auto-suggested cuota — e.g. a lote-habiente abonando más de su
-// cuota mensual. See esConceptoInteresable/calcularNuevoSaldoPorMonto above
-// (shared with onEditMontoInput) for which concepts this applies to and the
-// actual interest/capital math.
+// Recalcula "Saldo Pendiente" en vivo apenas se escribe el Monto, para
+// CUALQUIER concepto (no solo cuota/Abono) -- usa la misma
+// calcularSaldoEsperado() que ya usa registrarPago() al guardar, para que lo
+// que se ve en pantalla sea siempre igual a lo que de verdad se va a
+// guardar. Para Reserva/Contado/Pago Saldo el resultado no depende del
+// monto escrito (siempre es financiar o 0), pero igual se recalcula en cada
+// tecla para que el campo nunca se quede vacío esperando un valor que no
+// llega -- ese fue el bug real: el autofill al elegir lote/concepto a veces
+// no se disparaba en ciertos navegadores, y nada mas volvia a intentarlo.
 function onMontoInput() {
   const loteId = document.getElementById('pago-lote').value;
   if (!loteId) return;
   const concepto = document.getElementById('pago-concepto').value;
-  if (!esConceptoInteresable(concepto)) return;
 
   const loteInfo = getLote(loteId);
   const pagosDeLote = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
@@ -3755,8 +3758,10 @@ function onMontoInput() {
   const saldoActual = ultimoPago ? ultimoPago.saldo : (loteInfo.valor || 0);
 
   const monto = parseFloat(document.getElementById('pago-monto').value) || 0;
-  const tasa = loteInfo.tasa || 0.105;
-  document.getElementById('pago-saldo').value = calcularNuevoSaldoPorMonto(saldoActual, monto, tasa).toFixed(2);
+  const saldoCalculado = calcularSaldoEsperado(concepto, loteInfo, saldoActual, monto);
+  if (saldoCalculado !== null) {
+    document.getElementById('pago-saldo').value = saldoCalculado.toFixed(2);
+  }
 }
 
 function registrarPago() {
