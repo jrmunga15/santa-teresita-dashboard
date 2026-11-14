@@ -316,16 +316,18 @@
     border-radius: var(--radius);
     box-shadow: var(--shadow-lg);
     width: 90%; max-width: 700px;
-    max-height: 90vh; overflow-y: auto;
+    max-height: 90vh;
+    display: flex; flex-direction: column; overflow: hidden;
   }
   .modal-header {
     padding: 20px 24px;
     border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
   }
   .modal-title { font-family: 'DM Serif Display', serif; font-size: 18px; }
-  .modal-body { padding: 24px; }
-  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+  .modal-body { padding: 24px; overflow-y: auto; flex: 1 1 auto; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
   .modal-close { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 20px; line-height: 1; }
 
   /* ─── RECIBO MUZZOLO STYLE ─── */
