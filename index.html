@@ -3125,6 +3125,26 @@ function calcularNuevoSaldoPorMonto(saldoAntes, monto, tasa) {
   return nuevoSaldo > 0 ? nuevoSaldo : 0;
 }
 
+// Fuente de verdad del saldo para un concepto dado, independiente de lo que
+// haya quedado (o no) en el campo "Saldo Pendiente" del formulario. El
+// autofill en pantalla (onLoteChange/onConceptoChange) es solo una vista
+// previa para que el usuario vea el número antes de guardar -- si por lo
+// que sea no se disparó (visto en vivo: un recibo de Reserva guardado con
+// saldo $0 en vez de financiar, en un navegador/dispositivo donde el campo
+// se quedó vacío), registrarPago() recalcula esto de todas formas en vez de
+// confiar a ciegas en el valor del input. Devuelve null para conceptos
+// libres ("Otro") que no tienen una fórmula fija -- ahí sí se respeta lo
+// que haya puesto el usuario.
+function calcularSaldoEsperado(concepto, loteInfo, saldoAntes, monto) {
+  if (esConceptoInteresable(concepto)) {
+    const tasa = loteInfo.tasa || 0.105;
+    return calcularNuevoSaldoPorMonto(saldoAntes, monto, tasa);
+  }
+  if (concepto === 'Reserva') return loteInfo.financiar > 0 ? loteInfo.financiar : 0;
+  if (concepto === 'Contado' || concepto === 'Pago Saldo' || concepto === 'Saldo Total') return 0;
+  return null;
+}
+
 function onEditMontoInput() {
   const p = pagos.find(x => x.id === _reciboActivoId);
   if (!p) return;
@@ -5816,23 +5836,36 @@ window.registrarPago = async function() {
     return;
   }
 
+  const loteInfo = getLote(loteId);
+
   if (concepto === 'Plazo') {
-    const loteInfo = getLote(loteId);
     const cuotasPagadas = pagos.filter(p => p.lote === loteId && p.concepto?.includes('/')).length;
     const totalCuotas = loteInfo.meses || 180;
     concepto = `${cuotasPagadas + 1}/${totalCuotas}`;
   }
 
+  // No confiar a ciegas en lo que haya quedado en "Saldo Pendiente": ese
+  // campo es solo el autofill en pantalla (onLoteChange/onConceptoChange),
+  // y si por lo que sea no se disparó -- visto en vivo en un navegador
+  // mobile, un recibo de Reserva guardado con saldo $0 en vez del
+  // financiar real del lote -- se recalcula aquí con la misma fórmula
+  // (calcularSaldoEsperado) en vez de guardar lo que haya en el input.
+  const pagosDeLotePrevios = pagos.filter(p => p.lote === loteId).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
+  const ultimoPagoPrevio = pagosDeLotePrevios[pagosDeLotePrevios.length - 1];
+  const saldoAntes = ultimoPagoPrevio ? ultimoPagoPrevio.saldo : (loteInfo.valor || 0);
+  const saldoCalculado = calcularSaldoEsperado(concepto, loteInfo, saldoAntes, monto);
+  const saldoFinal = saldoCalculado !== null ? saldoCalculado : saldo;
+
   const mes = mesFromFecha(fecha);
 
   // Un usuario limitado no puede registrar el pago directo: queda pendiente
   // de que el administrador lo apruebe desde "Pendientes" una vez haya
-  // confirmado que el dinero realmente ingresó. El saldo calculado aquí es
-  // solo una sugerencia para el administrador — se recalcula desde cero con
-  // el estado más actual de pagos al momento de aprobar (ver aprobarPendiente()).
+  // confirmado que el dinero realmente ingresó. aprobarPendiente() vuelve a
+  // recalcular el saldo con el estado más actual de pagos de todas formas,
+  // pero ya guardamos el valor correcto en saldo_sugerido desde aquí.
   if (window.esUsuarioLimitado) {
     const borrador = {
-      cliente_id: cid, lote: loteId, concepto, monto, saldo_sugerido: saldo,
+      cliente_id: cid, lote: loteId, concepto, monto, saldo_sugerido: saldoFinal,
       forma, fecha, mes, notas: notas || '',
       estado: 'pendiente',
       creado_por: window._currentUser?.email || '',
@@ -5855,7 +5888,7 @@ window.registrarPago = async function() {
   const nuevo = {
     recibo: String(renum),
     fecha, cliente_id: cid, lote: loteId,
-    concepto, monto, saldo, forma, mes, notas: notas || ''
+    concepto, monto, saldo: saldoFinal, forma, mes, notas: notas || ''
   };
 
   closeModal('modal-pago');
@@ -5979,18 +6012,13 @@ async function aprobarPendiente(docId) {
     concepto = `${cuotasPagadas + 1}/${totalCuotas}`;
   }
 
-  let saldoFinal;
-  if (esConceptoInteresable(concepto)) {
-    const pagosDeLote = pagos.filter(x => x.lote === p.lote).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
-    const ultimoPago = pagosDeLote[pagosDeLote.length - 1];
-    const saldoAntes = ultimoPago ? ultimoPago.saldo : (loteInfo.valor || 0);
-    const tasa = loteInfo.tasa || 0.105;
-    saldoFinal = calcularNuevoSaldoPorMonto(saldoAntes, p.monto, tasa);
-  } else {
-    // Reserva/Contado/Pago Saldo/Otro no dependen del monto: se respeta lo
-    // que el empleado dejó como saldo sugerido para ese concepto.
-    saldoFinal = p.saldo_sugerido;
-  }
+  const pagosDeLote = pagos.filter(x => x.lote === p.lote).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.recibo.localeCompare(b.recibo));
+  const ultimoPago = pagosDeLote[pagosDeLote.length - 1];
+  const saldoAntes = ultimoPago ? ultimoPago.saldo : (loteInfo.valor || 0);
+  const saldoCalculado = calcularSaldoEsperado(concepto, loteInfo, saldoAntes, p.monto);
+  // 'Otro' no tiene formula fija (calcularSaldoEsperado devuelve null) --
+  // ahi si se respeta el saldo sugerido que dejo el empleado al enviarlo.
+  const saldoFinal = saldoCalculado !== null ? saldoCalculado : p.saldo_sugerido;
 
   const renum = getNextReciboNum();
   const mes = mesFromFecha(p.fecha);
