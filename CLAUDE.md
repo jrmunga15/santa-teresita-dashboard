@@ -17,7 +17,7 @@ No build system. The entire app is a single `index.html` file (~4900 lines). To 
   python -m http.server
   ```
 - Firebase credentials are hardcoded in the `<script type="module">` block at the top of the file (project: `santa-teresita-2`).
-
+- Hosted on Netlify (`santateresita.netlify.app`), auto-deployed from `main`. `_headers` forces `Cache-Control: no-cache, no-store, must-revalidate` on every path — without it, mobile browsers in particular can keep serving a stale cached `index.html` for weeks after a fix ships, which looks exactly like a device-specific bug (same account, same data, different behavior on phone vs. computer) but is really just an old bundle. Added 2026-11-14 after this exact symptom on a phone that hadn't refreshed since several fixes earlier.
 ## Architecture
 
 **Everything lives in `index.html`** — HTML structure, CSS (lines ~77–562), and JavaScript (lines ~1338–4883). There are no external JS or CSS files.
