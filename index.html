@@ -505,6 +505,37 @@
     table { min-width: 500px; }
     td, th { padding: 11px 12px; font-size: 13.5px; }
 
+    /* Listas principales (Pagos, Lotes, Clientes, etc.): tarjetas apiladas
+       en vez de tabla con scroll lateral, para que no haya que descubrir
+       que se puede deslizar hacia los lados ni perder columnas de vista. */
+    .table-wrap.cards-mobile table { min-width: 0; }
+    .table-wrap.cards-mobile thead { display: none; }
+    .table-wrap.cards-mobile tbody,
+    .table-wrap.cards-mobile tr,
+    .table-wrap.cards-mobile td { display: block; width: 100%; box-sizing: border-box; }
+    .table-wrap.cards-mobile tr {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 2px 14px;
+      margin-bottom: 12px;
+    }
+    .table-wrap.cards-mobile tr:last-child { margin-bottom: 0; }
+    .table-wrap.cards-mobile tr:hover td { background: none; }
+    .table-wrap.cards-mobile td {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border);
+      text-align: right; font-size: 14px;
+    }
+    .table-wrap.cards-mobile td:last-child { border-bottom: none; }
+    .table-wrap.cards-mobile td[data-label]::before {
+      content: attr(data-label);
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.04em;
+      text-align: left; flex-shrink: 0;
+    }
+    .table-wrap.cards-mobile td:not([data-label]) { justify-content: center; }
+
     /* Buttons: mas altos y con texto mas grande para que sean faciles de tocar */
     .btn { padding: 11px 16px; font-size: 14px; }
     .btn-sm { padding: 9px 14px; font-size: 13px; }
@@ -813,7 +844,7 @@
             </select>
           </div>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap cards-mobile">
           <table>
             <thead><tr>
               <th>Lote-habiente</th><th>Lote</th><th>Cuota</th><th>Monto</th><th>Fecha Límite</th><th>Estado</th><th></th>
@@ -841,7 +872,7 @@
         <button class="btn btn-primary btn-sm" onclick="openModal('modal-cliente')">+ Nuevo Lote-habiente</button>
       </div>
       <div class="card">
-        <div class="table-wrap">
+        <div class="table-wrap cards-mobile">
           <table>
             <thead><tr>
               <th>ID</th><th>Nombre</th><th>DUI / Pasaporte</th><th>Lote(s)</th><th>Teléfono</th><th>Clasificación</th><th>Alertas</th><th>Saldo Pendiente</th><th>Acciones</th>
@@ -866,7 +897,7 @@
         </div>
       </div>
       <div class="card">
-        <div class="table-wrap">
+        <div class="table-wrap cards-mobile">
           <table>
             <thead><tr>
               <th>Recibo</th><th>Fecha</th><th>Lote-habiente</th><th>Lote</th><th>Concepto</th><th>Monto</th><th>Saldo</th><th>Forma Pago</th><th>Acciones</th>
@@ -884,7 +915,7 @@
           <span class="card-title">Recibos Pendientes de Aprobación</span>
           <span style="font-size:11px;color:var(--text-muted)">Un recibo enviado por un usuario limitado no cuenta en saldos ni dashboard hasta que se aprueba aquí</span>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap cards-mobile">
           <table>
             <thead><tr>
               <th>Fecha</th><th>Lote</th><th>Lote-habiente</th><th>Concepto</th><th>Monto</th><th>Forma Pago</th><th>Enviado por</th><th>Estado</th><th>Acción</th>
@@ -930,7 +961,7 @@
         <div id="lotes-stats-bar"></div>
       </div>
       <div class="card">
-        <div class="table-wrap">
+        <div class="table-wrap cards-mobile">
           <table>
             <thead><tr>
               <th>Lote</th><th>Polígono</th><th>Estado</th><th>Área M²</th><th>Área V²</th><th>Propietario</th><th>Valor</th><th>Cuota</th><th>Plazo</th>
@@ -955,7 +986,7 @@
         <button class="btn btn-amber btn-sm" onclick="openModal('modal-generar-recibo')">🖨 Generar Recibo</button>
       </div>
       <div class="card">
-        <div class="table-wrap">
+        <div class="table-wrap cards-mobile">
           <table>
             <thead><tr>
               <th>Recibo No.</th><th>Fecha</th><th>Lote-habiente</th><th>Lote</th><th>Concepto</th><th>Monto</th><th>Forma Pago</th><th>Acciones</th>
@@ -992,7 +1023,7 @@
           <span class="card-title">Resumen de Saldos</span>
           <span style="font-size:12px;color:var(--text-muted)">Haz clic en un lote para ver su historial completo</span>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap cards-mobile">
           <table>
             <thead><tr>
               <th>Lote</th><th>Propietario</th><th>Precio Lote</th><th>Total Pagado</th><th>Capital Pagado</th><th>Intereses Pagados</th><th>Saldo Capital</th><th>Cuotas</th><th>Avance</th><th></th>
@@ -1014,7 +1045,7 @@
             <button class="btn btn-secondary btn-sm" onclick="cerrarHistorial()">✕ Cerrar</button>
           </div>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap cards-mobile">
           <table>
             <thead><tr>
               <th>#</th><th>Recibo</th><th>Fecha</th><th>Concepto</th><th>Monto Pagado</th><th>Saldo Anterior</th><th>Intereses</th><th>Abono Capital</th><th>Nuevo Saldo</th><th>Forma Pago</th>
@@ -1259,7 +1290,7 @@
       </div>
 
       <div class="card">
-        <div class="table-wrap">
+        <div class="table-wrap cards-mobile">
           <table>
             <thead><tr>
               <th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Proveedor</th><th>Monto</th><th>Forma Pago</th><th>Acciones</th>
@@ -2549,12 +2580,12 @@ function renderProximosPagos() {
     else                          estadoBadge = `<span class="badge badge-green">${diasRestantes}d</span>`;
 
     return `<tr>
-      <td style="font-weight:500">${c.nombre||'—'}</td>
-      <td><strong>${loteId}</strong></td>
-      <td>${badge(proximaCuota+'/'+loteInfo.meses)}</td>
-      <td style="font-weight:600">${fmt(loteInfo.cuota)}</td>
-      <td>${fechaStr}</td>
-      <td>${estadoBadge}</td>
+      <td data-label="Lote-habiente" style="font-weight:500">${c.nombre||'—'}</td>
+      <td data-label="Lote"><strong>${loteId}</strong></td>
+      <td data-label="Cuota">${badge(proximaCuota+'/'+loteInfo.meses)}</td>
+      <td data-label="Monto" style="font-weight:600">${fmt(loteInfo.cuota)}</td>
+      <td data-label="Fecha Límite">${fechaStr}</td>
+      <td data-label="Estado">${estadoBadge}</td>
       <td><button class="btn btn-primary btn-sm" onclick="registrarPagoDesde(${c.id},'${loteId}')">+ Registrar Pago</button></td>
     </tr>`;
   }).join('');
@@ -2632,14 +2663,14 @@ function renderClientes(list) {
     if (morosoAuto) alertas.push(`<span class="badge badge-red" title="${meses} meses sin cuota">⚠ ${meses}m sin pago</span>`);
     if (docsPend.length) alertas.push(`<span class="badge badge-amber" title="Pendiente: ${docsPend.join(', ')}">📋 Docs</span>`);
     return `<tr style="cursor:pointer" onclick="verPerfilCliente(${c.id})">
-      <td><span style="font-weight:700;color:var(--accent);font-size:12px;letter-spacing:0.04em">${c.codigo}</span></td>
-      <td style="font-weight:500">${c.nombre}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${c.dui||'—'}</td>
-      <td>${misLotes.map(l=>'<span class="badge badge-gray">'+l.id+'</span>').join(' ')}</td>
-      <td>${c.tel||'<span style="color:var(--text-light)">—</span>'}</td>
-      <td>${clasificacionBadge(c)}</td>
-      <td>${alertas.length ? alertas.join(' ') : '<span style="color:var(--text-light);font-size:11px">—</span>'}</td>
-      <td style="font-weight:600;color:var(--accent)">${saldo > 0 ? fmt(saldo) : totalPagado > 0 ? '<span class="badge badge-green">Saldado</span>' : '<span class="badge badge-gray">Sin pagos</span>'}</td>
+      <td data-label="ID"><span style="font-weight:700;color:var(--accent);font-size:12px;letter-spacing:0.04em">${c.codigo}</span></td>
+      <td data-label="Nombre" style="font-weight:500">${c.nombre}</td>
+      <td data-label="DUI / Pasaporte" style="font-size:12px;color:var(--text-muted)">${c.dui||'—'}</td>
+      <td data-label="Lote(s)">${misLotes.map(l=>'<span class="badge badge-gray">'+l.id+'</span>').join(' ')}</td>
+      <td data-label="Teléfono">${c.tel||'<span style="color:var(--text-light)">—</span>'}</td>
+      <td data-label="Clasificación">${clasificacionBadge(c)}</td>
+      <td data-label="Alertas">${alertas.length ? alertas.join(' ') : '<span style="color:var(--text-light);font-size:11px">—</span>'}</td>
+      <td data-label="Saldo Pendiente" style="font-weight:600;color:var(--accent)">${saldo > 0 ? fmt(saldo) : totalPagado > 0 ? '<span class="badge badge-green">Saldado</span>' : '<span class="badge badge-gray">Sin pagos</span>'}</td>
       <td onclick="event.stopPropagation()">
         <button class="btn btn-primary btn-sm" onclick="verPerfilCliente(${c.id})">Ver perfil</button>
       </td>
@@ -2677,14 +2708,14 @@ function renderPagos() {
   tbody.innerHTML = filtered.sort((a,b) => (b.recibo||'').localeCompare(a.recibo||'')).map(p => {
     const c = getCliente(p.cliente_id);
     return `<tr>
-      <td><span style="font-weight:600;color:var(--accent)">${p.recibo}</span></td>
-      <td>${fmtDate(p.fecha)}</td>
-      <td>${c.nombre||'—'}</td>
-      <td><span style="font-weight:500">${p.lote}</span></td>
-      <td>${badge(p.concepto)}</td>
-      <td style="font-weight:600">${fmt(p.monto)}</td>
-      <td style="color:var(--text-muted)">${fmt(p.saldo)}</td>
-      <td>${p.forma}</td>
+      <td data-label="Recibo"><span style="font-weight:600;color:var(--accent)">${p.recibo}</span></td>
+      <td data-label="Fecha">${fmtDate(p.fecha)}</td>
+      <td data-label="Lote-habiente">${c.nombre||'—'}</td>
+      <td data-label="Lote"><span style="font-weight:500">${p.lote}</span></td>
+      <td data-label="Concepto">${badge(p.concepto)}</td>
+      <td data-label="Monto" style="font-weight:600">${fmt(p.monto)}</td>
+      <td data-label="Saldo" style="color:var(--text-muted)">${fmt(p.saldo)}</td>
+      <td data-label="Forma Pago">${p.forma}</td>
       <td>
         <button class="btn btn-secondary btn-sm" onclick="verRecibo(${p.id})">Ver Recibo</button>
       </td>
@@ -2734,15 +2765,15 @@ function renderLotes() {
     }[l.estado_plano] || `<span class="badge badge-gray">${l.estado_plano}</span>`;
 
     return `<tr style="cursor:pointer" onclick="verDetalleLote('${l.id}')">
-      <td><span style="font-weight:700;font-size:15px;color:var(--accent)">${l.id}</span></td>
-      <td><span class="badge badge-gray" style="font-size:11px">Pol. ${poly}</span></td>
-      <td>${estadoBadge}</td>
-      <td style="font-weight:500">${l.area_m2.toFixed(2)} m²</td>
-      <td style="color:var(--text-muted)">${l.area_v2.toFixed(2)} v²</td>
-      <td>${c ? c.nombre : '<span style="color:var(--text-light)">—</span>'}</td>
-      <td>${c && l.valor > 0 ? fmt(l.valor) : '—'}</td>
-      <td>${c && l.cuota > 0 ? fmt(l.cuota)+'/mes' : c && l.meses === 0 && l.valor > 0 ? '<span style="color:var(--text-muted)">Contado</span>' : '—'}</td>
-      <td>${c && l.meses > 0 ? l.meses+' meses' : '—'}</td>
+      <td data-label="Lote"><span style="font-weight:700;font-size:15px;color:var(--accent)">${l.id}</span></td>
+      <td data-label="Polígono"><span class="badge badge-gray" style="font-size:11px">Pol. ${poly}</span></td>
+      <td data-label="Estado">${estadoBadge}</td>
+      <td data-label="Área M²" style="font-weight:500">${l.area_m2.toFixed(2)} m²</td>
+      <td data-label="Área V²" style="color:var(--text-muted)">${l.area_v2.toFixed(2)} v²</td>
+      <td data-label="Propietario">${c ? c.nombre : '<span style="color:var(--text-light)">—</span>'}</td>
+      <td data-label="Valor">${c && l.valor > 0 ? fmt(l.valor) : '—'}</td>
+      <td data-label="Cuota">${c && l.cuota > 0 ? fmt(l.cuota)+'/mes' : c && l.meses === 0 && l.valor > 0 ? '<span style="color:var(--text-muted)">Contado</span>' : '—'}</td>
+      <td data-label="Plazo">${c && l.meses > 0 ? l.meses+' meses' : '—'}</td>
     </tr>`;
   }).join('');
 }
@@ -2944,13 +2975,13 @@ function renderRecibos() {
   tbody.innerHTML = filtered.sort((a,b) => (b.recibo||'').localeCompare(a.recibo||'')).map(p => {
     const c = getCliente(p.cliente_id);
     return `<tr>
-      <td style="font-weight:700;color:var(--accent)">${p.recibo || '<span style="color:var(--text-light);font-style:italic;font-size:11px">Pendiente</span>'}</td>
-      <td>${fmtDate(p.fecha)}</td>
-      <td>${c.nombre||'—'}</td>
-      <td><span style="font-weight:500">${p.lote}</span></td>
-      <td>${badge(p.concepto)}</td>
-      <td style="font-weight:600">${fmt(p.monto)}</td>
-      <td>${p.forma}</td>
+      <td data-label="Recibo No." style="font-weight:700;color:var(--accent)">${p.recibo || '<span style="color:var(--text-light);font-style:italic;font-size:11px">Pendiente</span>'}</td>
+      <td data-label="Fecha">${fmtDate(p.fecha)}</td>
+      <td data-label="Lote-habiente">${c.nombre||'—'}</td>
+      <td data-label="Lote"><span style="font-weight:500">${p.lote}</span></td>
+      <td data-label="Concepto">${badge(p.concepto)}</td>
+      <td data-label="Monto" style="font-weight:600">${fmt(p.monto)}</td>
+      <td data-label="Forma Pago">${p.forma}</td>
       <td>
         <button class="btn btn-amber btn-sm" onclick="verRecibo(${p.id})">📄 Descargar PDF</button>
       </td>
@@ -5376,19 +5407,21 @@ function renderSaldos() {
     const progressColor = pct >= 75 ? 'var(--accent-light)' : pct >= 40 ? 'var(--amber)' : 'var(--blue)';
 
     return `<tr style="cursor:pointer" onclick="verHistorialLote('${l.id}')">
-      <td style="font-weight:700;font-size:15px">${l.id}</td>
-      <td>${c.nombre||'—'}</td>
-      <td>${fmt(l.valor)}</td>
-      <td style="font-weight:600;color:var(--accent)">${fmt(totalPagado)}</td>
-      <td>${fmt(totalCapital)}</td>
-      <td style="color:var(--amber)">${fmt(totalIntereses)}</td>
-      <td style="font-weight:700;color:${saldado ? 'var(--accent)' : 'var(--red)'}">${saldado ? '<span class="badge badge-green">$0.00 ✓</span>' : fmt(saldoActual)}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${cuotasTotal > 0 ? cuotasPagadas+'/'+cuotasTotal : '—'}</td>
-      <td style="min-width:100px">
-        <div style="background:#e8e2d9;border-radius:20px;height:6px;overflow:hidden">
-          <div style="width:${pct}%;height:100%;background:${progressColor};border-radius:20px;transition:width 0.3s"></div>
+      <td data-label="Lote" style="font-weight:700;font-size:15px">${l.id}</td>
+      <td data-label="Propietario">${c.nombre||'—'}</td>
+      <td data-label="Precio Lote">${fmt(l.valor)}</td>
+      <td data-label="Total Pagado" style="font-weight:600;color:var(--accent)">${fmt(totalPagado)}</td>
+      <td data-label="Capital Pagado">${fmt(totalCapital)}</td>
+      <td data-label="Intereses Pagados" style="color:var(--amber)">${fmt(totalIntereses)}</td>
+      <td data-label="Saldo Capital" style="font-weight:700;color:${saldado ? 'var(--accent)' : 'var(--red)'}">${saldado ? '<span class="badge badge-green">$0.00 ✓</span>' : fmt(saldoActual)}</td>
+      <td data-label="Cuotas" style="font-size:12px;color:var(--text-muted)">${cuotasTotal > 0 ? cuotasPagadas+'/'+cuotasTotal : '—'}</td>
+      <td data-label="Avance" style="min-width:100px">
+        <div style="min-width:80px">
+          <div style="background:#e8e2d9;border-radius:20px;height:6px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${progressColor};border-radius:20px;transition:width 0.3s"></div>
+          </div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px;text-align:right">${pct}%</div>
         </div>
-        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${pct}%</div>
       </td>
       <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();verHistorialLote('${l.id}')">Ver detalle →</button></td>
     </tr>`;
@@ -5408,16 +5441,16 @@ function verHistorialLote(loteId) {
   tbody.innerHTML = historial.map((h, i) => {
     const esCuota = h.intereses > 0;
     return `<tr>
-      <td style="color:var(--text-light)">${i+1}</td>
-      <td style="font-weight:600;color:var(--accent)">${h.recibo}</td>
-      <td>${fmtDate(h.fecha)}</td>
-      <td>${badge(h.concepto)}</td>
-      <td style="font-weight:600">${fmt(h.monto)}</td>
-      <td style="color:var(--text-muted)">${fmt(h.saldoAnterior)}</td>
-      <td style="color:var(--amber)">${esCuota ? fmt(h.intereses) : '—'}</td>
-      <td style="color:var(--blue)">${esCuota ? fmt(h.abonoCapital) : '—'}</td>
-      <td style="font-weight:700;color:${h.nuevoSaldo <= 0.01 ? 'var(--accent)' : 'var(--text)'}">${h.nuevoSaldo <= 0.01 ? '<span class="badge badge-green">$0.00 ✓</span>' : fmt(h.nuevoSaldo)}</td>
-      <td style="font-size:12px">${h.forma}</td>
+      <td data-label="#" style="color:var(--text-light)">${i+1}</td>
+      <td data-label="Recibo" style="font-weight:600;color:var(--accent)">${h.recibo}</td>
+      <td data-label="Fecha">${fmtDate(h.fecha)}</td>
+      <td data-label="Concepto">${badge(h.concepto)}</td>
+      <td data-label="Monto Pagado" style="font-weight:600">${fmt(h.monto)}</td>
+      <td data-label="Saldo Anterior" style="color:var(--text-muted)">${fmt(h.saldoAnterior)}</td>
+      <td data-label="Intereses" style="color:var(--amber)">${esCuota ? fmt(h.intereses) : '—'}</td>
+      <td data-label="Abono Capital" style="color:var(--blue)">${esCuota ? fmt(h.abonoCapital) : '—'}</td>
+      <td data-label="Nuevo Saldo" style="font-weight:700;color:${h.nuevoSaldo <= 0.01 ? 'var(--accent)' : 'var(--text)'}">${h.nuevoSaldo <= 0.01 ? '<span class="badge badge-green">$0.00 ✓</span>' : fmt(h.nuevoSaldo)}</td>
+      <td data-label="Forma Pago" style="font-size:12px">${h.forma}</td>
     </tr>`;
   }).join('');
 
@@ -5988,14 +6021,14 @@ function renderPendientes() {
             : '—');
 
     return `<tr>
-      <td style="font-size:12px;color:var(--text-muted)">${fmtDate(p.fecha)}</td>
-      <td style="font-weight:700">${p.lote}</td>
-      <td>${c.nombre || '—'}</td>
-      <td>${p.concepto}</td>
-      <td style="font-weight:600">${fmt(p.monto)}</td>
-      <td>${p.forma}</td>
-      <td style="font-size:11px;color:var(--text-muted)">${p.creado_por || ''}</td>
-      <td>${badge}</td>
+      <td data-label="Fecha" style="font-size:12px;color:var(--text-muted)">${fmtDate(p.fecha)}</td>
+      <td data-label="Lote" style="font-weight:700">${p.lote}</td>
+      <td data-label="Lote-habiente">${c.nombre || '—'}</td>
+      <td data-label="Concepto">${p.concepto}</td>
+      <td data-label="Monto" style="font-weight:600">${fmt(p.monto)}</td>
+      <td data-label="Forma Pago">${p.forma}</td>
+      <td data-label="Enviado por" style="font-size:11px;color:var(--text-muted)">${p.creado_por || ''}</td>
+      <td data-label="Estado">${badge}</td>
       <td>${acciones}</td>
     </tr>`;
   }).join('');
@@ -6127,12 +6160,12 @@ function renderCostos() {
   tbody.innerHTML = filtered
     .sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''))
     .map(c => `<tr>
-      <td style="font-size:12px;color:var(--text-muted)">${fmtDate(c.fecha)}</td>
-      <td>${badge(c.categoria)}</td>
-      <td>${c.descripcion||'—'}</td>
-      <td>${c.proveedor||'—'}</td>
-      <td style="font-weight:600;color:var(--red)">${fmt(c.monto)}</td>
-      <td>${c.forma||'—'}</td>
+      <td data-label="Fecha" style="font-size:12px;color:var(--text-muted)">${fmtDate(c.fecha)}</td>
+      <td data-label="Categoría">${badge(c.categoria)}</td>
+      <td data-label="Descripción">${c.descripcion||'—'}</td>
+      <td data-label="Proveedor">${c.proveedor||'—'}</td>
+      <td data-label="Monto" style="font-weight:600;color:var(--red)">${fmt(c.monto)}</td>
+      <td data-label="Forma Pago">${c.forma||'—'}</td>
       <td>
         <button class="btn btn-secondary btn-sm" onclick="abrirModalCosto('${c._docId}')">✏ Editar</button>
         <button class="btn btn-danger btn-sm" onclick="borrarCosto('${c._docId}')">🗑 Borrar</button>
