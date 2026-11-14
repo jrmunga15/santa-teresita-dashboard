@@ -525,6 +525,9 @@
     /* Topbar actions: hide text, keep buttons compact */
     .topbar-actions { gap: 6px; }
     .topbar-actions .btn-secondary { display: none; }
+    /* El FAB (.fab-pago) ya cubre "Registrar Pago" en mobile; mostrar
+       también el de la topbar es un boton duplicado haciendo lo mismo. */
+    .topbar-actions .btn-registrar-pago-topbar { display: none; }
 
     /* Profile modal: full height */
     #modal-perfil-cliente .modal { height: 100vh; border-radius: 0 !important; }
@@ -683,7 +686,10 @@
       Costos
     </button>
   </div>
-  <div class="sidebar-footer">v1.0 · 2026</div>
+  <div class="sidebar-footer" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+    <button class="btn btn-secondary btn-sm" onclick="doLogout()">Salir</button>
+    <span>v1.0 · 2026</span>
+  </div>
 </nav>
 
 <!-- MAIN -->
@@ -698,7 +704,7 @@
     <div class="topbar-actions">
       <span id="topbar-user" style="font-size:12px;color:var(--text-muted);margin-right:8px"></span>
       <button class="btn btn-secondary btn-sm" onclick="doLogout()" style="margin-right:8px">Salir</button>
-      <button class="btn btn-primary btn-sm" onclick="openModal('modal-pago')">+ Registrar Pago</button>
+      <button class="btn btn-primary btn-sm btn-registrar-pago-topbar" onclick="openModal('modal-pago')">+ Registrar Pago</button>
     </div>
   </div>
 
@@ -843,9 +849,6 @@
             <option value="">Todos los meses</option>
           </select>
         </div>
-        <span id="topbar-user" style="font-size:12px;color:var(--text-muted);margin-right:8px"></span>
-      <button class="btn btn-secondary btn-sm" onclick="doLogout()" style="margin-right:8px">Salir</button>
-      <button class="btn btn-primary btn-sm" onclick="openModal('modal-pago')">+ Registrar Pago</button>
       </div>
       <div class="card">
         <div class="table-wrap">
