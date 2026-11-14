@@ -465,6 +465,10 @@
 
   /* ─── MOBILE ─── */
   @media (max-width: 768px) {
+    /* Texto base mas grande en todo el sitio para que no haga falta
+       acercar/alejar el telefono para leer. */
+    body { font-size: 15px; }
+
     /* Sidebar: hidden off-screen by default */
     .sidebar {
       transform: translateX(-100%);
@@ -491,15 +495,17 @@
     .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; }
     .stat-card { padding: 14px; }
     .stat-card .value { font-size: 22px; }
+    .stat-card .label { font-size: 12px; }
+    .stat-card .sub { font-size: 13px; }
 
-    /* Tables: horizontal scroll */
+    /* Tables: horizontal scroll, pero con texto y filas mas comodas de leer y tocar */
     .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     table { min-width: 500px; }
-    td, th { padding: 8px 10px; font-size: 12px; }
+    td, th { padding: 11px 12px; font-size: 13.5px; }
 
-    /* Buttons */
-    .btn { padding: 9px 14px; font-size: 13px; }
-    .btn-sm { padding: 7px 12px; font-size: 12px; }
+    /* Buttons: mas altos y con texto mas grande para que sean faciles de tocar */
+    .btn { padding: 11px 16px; font-size: 14px; }
+    .btn-sm { padding: 9px 14px; font-size: 13px; }
 
     /* Modals: full screen on mobile */
     .modal {
@@ -515,12 +521,18 @@
     .modal-body { flex: 1; overflow-y: auto; }
     .modal-footer { padding: 12px 16px; }
 
-    /* Forms */
+    /* Forms: campos mas altos, con texto de 16px -- bajo 16px, Safari en
+       iOS hace zoom automatico al tocar el campo, que es justo lo molesto
+       que se queria evitar. Mas espacio entre campos para dedos, no cursor. */
     .form-grid { grid-template-columns: 1fr !important; gap: 10px; }
     .form-grid-3 { grid-template-columns: 1fr !important; gap: 10px; }
+    .form-group { margin-bottom: 18px; }
+    .form-label { font-size: 13px; }
+    .form-control { font-size: 16px; padding: 12px 14px; }
 
     /* Cards */
     .card-header { padding: 12px 14px; flex-wrap: wrap; gap: 8px; }
+    .card-title { font-size: 15px; }
 
     /* Topbar actions: hide text, keep buttons compact */
     .topbar-actions { gap: 6px; }
@@ -532,8 +544,9 @@
     /* Profile modal: full height */
     #modal-perfil-cliente .modal { height: 100vh; border-radius: 0 !important; }
 
-    /* Search box full width */
-    .search-box input { width: 160px; }
+    /* Search box: igual que el resto de inputs, 16px evita el zoom
+       automatico de iOS al tocar el campo */
+    .search-box input { width: 160px; font-size: 16px; height: 42px; }
 
     /* Stat grid for saldos */
     #saldos-stats { grid-template-columns: 1fr 1fr !important; }
@@ -551,13 +564,13 @@
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       gap: 3px; color: rgba(255,255,255,0.5);
-      font-size: 9px; cursor: pointer;
+      font-size: 10.5px; cursor: pointer;
       background: none; border: none;
       font-family: 'DM Sans', sans-serif;
       transition: color 0.15s;
     }
     .mobile-nav-item.active { color: #fff; }
-    .mobile-nav-item svg { width: 18px; height: 18px; }
+    .mobile-nav-item svg { width: 20px; height: 20px; }
 
     /* Extra bottom padding so content isn't behind bottom nav */
     .content { padding-bottom: 70px; }
