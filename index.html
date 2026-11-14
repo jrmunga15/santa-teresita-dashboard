@@ -707,7 +707,10 @@
     <!-- PAGE: DASHBOARD -->
     <div class="page active" id="page-dashboard">
       <!-- Row 1: Finanzas y Clientes (ahora primero) -->
-      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Finanzas y Clientes</div>
+      <div class="flex justify-between items-center" style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">Finanzas y Clientes</div>
+        <button class="btn btn-secondary btn-sm" onclick="auditarIntegridad()" title="Revisa duplicados, huérfanos y otras inconsistencias en clientes, lotes y pagos">🔍 Auditar Integridad</button>
+      </div>
       <div class="stat-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
         <div class="stat-card green">
           <div class="label">Total Recibido</div>
@@ -1448,6 +1451,20 @@
     <div class="modal-body" id="auditar-saldos-body"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-auditar-saldos')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Auditar Integridad -->
+<div class="modal-overlay" id="modal-auditar-integridad">
+  <div class="modal" style="max-width:820px;">
+    <div class="modal-header">
+      <span class="modal-title">Auditoría de Integridad</span>
+      <button class="modal-close" onclick="closeModal('modal-auditar-integridad')">×</button>
+    </div>
+    <div class="modal-body" id="auditar-integridad-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-auditar-integridad')">Cerrar</button>
     </div>
   </div>
 </div>
@@ -5173,6 +5190,94 @@ function auditarSaldos() {
       </table></div>`;
 
   openModal('modal-auditar-saldos');
+}
+
+// Chequeo general de integridad de datos (duplicados, huérfanos,
+// inconsistencias) — complementa a auditarSaldos(), que solo revisa la
+// fórmula de interés. A diferencia de las otras auditorías de la app, esta
+// consulta Firestore directo en vez de usar el arreglo `lotes` ya en
+// memoria: ese arreglo se arma con un merge que ya deduplica por id
+// (ver el onSnapshot de 'lotes'), así que nunca mostraría el caso real que
+// motivó esto -- dos documentos de Firestore para el mismo lote (C-1,
+// 14/11/2026) por culpa de un doc sembrado con ID aleatorio y luego
+// reasignado con el id del lote como ID de documento.
+async function auditarIntegridad() {
+  const body = document.getElementById('auditar-integridad-body');
+  body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted)">Revisando...</div>';
+  openModal('modal-auditar-integridad');
+
+  const db = window._db;
+  const { collection, getDocs } = window._fbFns;
+  const [lotesSnap, clientesSnap, pagosSnap] = await Promise.all([
+    getDocs(collection(db, 'lotes')),
+    getDocs(collection(db, 'clientes')),
+    getDocs(collection(db, 'pagos')),
+  ]);
+  const lotesRaw = lotesSnap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+  const clientesRaw = clientesSnap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+  const pagosRaw = pagosSnap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+
+  const secciones = [];
+
+  // 1. Lotes con mas de un documento para el mismo id
+  const porLoteId = {};
+  lotesRaw.forEach(l => { (porLoteId[l.id] = porLoteId[l.id] || []).push(l); });
+  const lotesDup = Object.entries(porLoteId).filter(([id, arr]) => arr.length > 1);
+  secciones.push({
+    titulo: 'Lotes con más de un documento (el caso de C-1)',
+    items: lotesDup.map(([id, arr]) => `Lote ${id}: ${arr.length} documentos (${arr.map(l => `docId=${l._docId}, estado=${l.estado_plano||'—'}`).join(' · ')})`),
+  });
+
+  // 2. Clientes duplicados por id, dui o código
+  const dupPorCampo = (campo) => {
+    const g = {};
+    clientesRaw.forEach(c => { const v = c[campo]; if (v !== undefined && v !== '') (g[v] = g[v] || []).push(c); });
+    return Object.entries(g).filter(([, arr]) => arr.length > 1);
+  };
+  const clientesDup = ['id', 'dui', 'codigo'].flatMap(campo =>
+    dupPorCampo(campo).map(([valor, arr]) => `${campo}=${valor}: ${arr.map(c => c.nombre).join(' · ')}`));
+  secciones.push({ titulo: 'Lote-habientes duplicados (mismo id, DUI o código)', items: clientesDup });
+
+  // 3. Pagos huerfanos: cliente_id que no existe
+  const clienteIds = new Set(clientesRaw.map(c => c.id));
+  const pagosHuerfanos = pagosRaw.filter(p => !clienteIds.has(parseInt(p.cliente_id)))
+    .map(p => `Recibo ${p.recibo||'—'} (lote ${p.lote}): cliente_id=${p.cliente_id} no existe`);
+  secciones.push({ titulo: 'Pagos con un lote-habiente inexistente', items: pagosHuerfanos });
+
+  // 4. Lotes con propietario_id inexistente
+  const lotesHuerfanos = lotesRaw.filter(l => l.propietario_id != null && !clienteIds.has(parseInt(l.propietario_id)))
+    .map(l => `Lote ${l.id}: propietario_id=${l.propietario_id} no existe`);
+  secciones.push({ titulo: 'Lotes con un propietario inexistente', items: lotesHuerfanos });
+
+  // 5. estado_plano vs propietario_id inconsistentes
+  const estadoInconsistente = lotesRaw.filter(l => {
+    const vendido = (l.estado_plano || '').startsWith('Vendido') || l.estado_plano === 'Reservado';
+    const tieneDueño = l.propietario_id != null;
+    return vendido !== tieneDueño;
+  }).map(l => `Lote ${l.id}: estado="${l.estado_plano||'—'}" pero propietario_id=${l.propietario_id ?? '—'}`);
+  secciones.push({ titulo: 'Estado del lote inconsistente con su propietario', items: estadoInconsistente });
+
+  // 6. Mismo No. de recibo usado por clientes DISTINTOS (no confundir con el
+  // patron normal de "Factura No." compartida en notas -- eso es un campo
+  // de texto libre aparte, esto es el numero de recibo real)
+  const porRecibo = {};
+  pagosRaw.forEach(p => { (porRecibo[p.recibo] = porRecibo[p.recibo] || []).push(p); });
+  const reciboCompartido = Object.entries(porRecibo)
+    .filter(([, arr]) => arr.length > 1 && new Set(arr.map(p => p.cliente_id)).size > 1)
+    .map(([recibo, arr]) => `Recibo ${recibo}: usado por clientes ${[...new Set(arr.map(p => p.cliente_id))].join(', ')}`);
+  secciones.push({ titulo: 'Un mismo número de recibo en más de un lote-habiente', items: reciboCompartido });
+
+  const totalHallazgos = secciones.reduce((s, sec) => s + sec.items.length, 0);
+
+  body.innerHTML = totalHallazgos === 0
+    ? '<div style="text-align:center;padding:30px;color:var(--text-muted)">✅ Todo en orden — sin duplicados, huérfanos ni inconsistencias.</div>'
+    : secciones.filter(sec => sec.items.length > 0).map(sec => `
+        <div style="margin-bottom:18px">
+          <div style="font-weight:600;font-size:13px;margin-bottom:6px">${sec.titulo} <span class="badge badge-red">${sec.items.length}</span></div>
+          <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--text-muted)">
+            ${sec.items.map(item => `<li>${item}</li>`).join('')}
+          </ul>
+        </div>`).join('');
 }
 
 function renderSaldos() {
