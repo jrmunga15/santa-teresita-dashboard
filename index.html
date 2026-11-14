@@ -503,12 +503,15 @@
        acercar/alejar el telefono para leer. */
     body { font-size: 15px; }
 
-    /* Sidebar: hidden off-screen by default */
+    /* Sidebar: hidden off-screen by default. Ocupa toda la pantalla al
+       abrirse en celular (no un panel lateral angosto con el contenido
+       de atrás visible y oscurecido), para que sea mas facil de leer y
+       tocar cada opción. */
     .sidebar {
       transform: translateX(-100%);
       transition: transform 0.25s ease;
       z-index: 100;
-      width: 260px;
+      width: 100%;
     }
     .sidebar.open { transform: translateX(0); }
     .sidebar-close { display: block; }
