@@ -514,7 +514,18 @@
       width: 100%;
     }
     .sidebar.open { transform: translateX(0); }
-    .sidebar-close { display: block; }
+    .sidebar-close { display: block; font-size: 28px; }
+
+    /* Letra e íconos más grandes dentro del menú -- ahora que ocupa toda
+       la pantalla hay espacio de sobra, y así no hace falta acercar el
+       celular para leer cada opción. */
+    .sidebar-logo { padding: 24px 24px 18px; }
+    .sidebar-logo .brand { font-size: 21px; }
+    .sidebar-logo .sub { font-size: 12px; }
+    .nav-item { font-size: 17px; padding: 15px 24px; gap: 14px; }
+    .nav-item .icon { width: 22px; height: 22px; }
+    .sidebar-footer { font-size: 13px; }
+    .sidebar-footer .btn { font-size: 15px; padding: 10px 18px; }
 
     /* Main takes full width */
     .main { margin-left: 0; }
@@ -2053,6 +2064,10 @@ function navigate(page, fromHistory) {
   document.querySelectorAll('.nav-item').forEach(n => { if (n.textContent.trim().toLowerCase().includes(pageTitles[page].toLowerCase().split(' ')[0])) n.classList.add('active'); });
   document.getElementById('page-title').textContent = pageTitles[page];
   renderPage(page);
+  // Cada página nueva empieza arriba del todo -- si no, conserva el scroll
+  // que había quedado en la página anterior (ej. cambiar de Pagos, viendo
+  // el final de la lista, a Lotes abría a media pantalla).
+  window.scrollTo(0, 0);
   // Registra la página en el historial del navegador (salvo cuando ya
   // llegamos aquí por un popstate) para que el botón/gesto de "volver" del
   // celular navegue entre páginas de la app en vez de salirse de ella --
