@@ -146,6 +146,10 @@
     color: #fff;
     line-height: 1.2;
   }
+  /* En el sidebar angosto de escritorio (220px) no cabe en una línea --
+     se fuerza el salto ahí; en celular (ver media query) se deja en línea
+     normal porque el menú ocupa toda la pantalla y sí entra. */
+  .sidebar-logo .brand .brand-line2 { display: block; }
   .sidebar-logo .sub {
     font-size: 10px;
     color: rgba(255,255,255,0.4);
@@ -520,7 +524,8 @@
        la pantalla hay espacio de sobra, y así no hace falta acercar el
        celular para leer cada opción. */
     .sidebar-logo { padding: 24px 24px 18px; }
-    .sidebar-logo .brand { font-size: 21px; }
+    .sidebar-logo .brand { font-size: 20px; }
+    .sidebar-logo .brand .brand-line2 { display: inline; }
     .sidebar-logo .sub { font-size: 12px; }
     .nav-item { font-size: 17px; padding: 15px 24px; gap: 14px; }
     .nav-item .icon { width: 22px; height: 22px; }
@@ -743,7 +748,7 @@
   <div class="sidebar-logo">
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
       <div>
-        <div class="brand">Parcelación<br>Sta. Teresita 2</div>
+        <div class="brand">Parcelación <span class="brand-line2">Sta. Teresita 2</span></div>
         <div class="sub">Ahuachapán, El Salvador</div>
       </div>
       <button class="sidebar-close" onclick="closeSidebar()">×</button>
