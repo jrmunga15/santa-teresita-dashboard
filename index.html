@@ -3546,6 +3546,11 @@ function setupModalPago() {
   document.getElementById('pago-monto').value = '';
   document.getElementById('pago-saldo').value = '';
   document.getElementById('pago-lote').innerHTML = '<option value="">—</option>';
+  // El <select> de Concepto es el mismo elemento reutilizado en cada
+  // apertura del modal, así que sin este reset se queda con lo último que
+  // alguien haya elegido (ej. "Contado" de otro recibo) — y para un lote
+  // nuevo sin Reserva previa, onLoteChange() no tiene nada que lo corrija.
+  document.getElementById('pago-concepto').value = 'Reserva';
 
   // Un usuario limitado no registra el pago directo: lo envía a la cola de
   // "Pendientes" para que el administrador lo confirme una vez haya recibido
