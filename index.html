@@ -5592,7 +5592,16 @@ window.initFirestoreListeners = async function() {
     const firestoreLotes = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
     lotes = catalogoLotes.map(cl => {
       const df = datosFinancieros[cl.id] || {};
-      const fl = firestoreLotes.find(l => l.id === cl.id || l._docId === cl.id);
+      // Prefer the doc whose Firestore doc ID IS the lote's own id — that's
+      // the canonical doc every write path (confirmarAsignarPropietario,
+      // guardarCliente, registrarPago's auto estado update) targets via
+      // doc(collection(db,'lotes'), loteId). Falling back to a looser
+      // "l.id === cl.id" match only when no such doc exists avoids picking
+      // a stale duplicate at random when both exist for the same lote (the
+      // original seedFirestore() used an auto-generated doc ID for any lote
+      // that already had financial data, so a later reassignment creates a
+      // SECOND doc instead of updating the first — see git history/CLAUDE.md).
+      const fl = firestoreLotes.find(l => l._docId === cl.id) || firestoreLotes.find(l => l.id === cl.id);
       const base = { ...cl, ...df };
       if (fl) {
         base._docId         = fl._docId;
