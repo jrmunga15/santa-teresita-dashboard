@@ -1063,7 +1063,7 @@
         <div style="padding:16px 20px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
           <div class="form-group" style="margin:0">
             <label class="form-label">Nuevo abono mensual ($)</label>
-            <input type="number" class="form-control" id="amort-sim-monto" style="width:180px" step="0.01" placeholder="0.00">
+            <input type="number" inputmode="decimal" class="form-control" id="amort-sim-monto" style="width:180px" step="0.01" placeholder="0.00">
           </div>
           <button class="btn btn-primary btn-sm" onclick="simularAmortizacion()">Simular</button>
           <button class="btn btn-secondary btn-sm no-print" id="amort-sim-print-btn" style="display:none" onclick="printSimulacionAmortizacion()">📄 Descargar PDF</button>
@@ -1156,39 +1156,39 @@
             </div>
             <div class="form-group" id="cot-meses-wrap">
               <label class="form-label">Plazo (meses)</label>
-              <input type="number" class="form-control" id="cot-meses" value="180" min="1" max="360" step="1" oninput="renderCotizacion()">
+              <input type="number" inputmode="numeric" class="form-control" id="cot-meses" value="180" min="1" max="360" step="1" oninput="renderCotizacion()">
             </div>
           </div>
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">Precio del lote ($)</label>
-              <input type="number" class="form-control" id="cot-precio" placeholder="18500.00" step="0.01" oninput="onCotPrecioChange()">
+              <input type="number" inputmode="decimal" class="form-control" id="cot-precio" placeholder="18500.00" step="0.01" oninput="onCotPrecioChange()">
             </div>
             <div class="form-group">
               <label class="form-label">Precio por m²</label>
-              <input type="number" class="form-control" id="cot-precio-m2" placeholder="92.50" step="0.01" oninput="onCotM2Change()" style="background:var(--surface2)">
+              <input type="number" inputmode="decimal" class="form-control" id="cot-precio-m2" placeholder="92.50" step="0.01" oninput="onCotM2Change()" style="background:var(--surface2)">
             </div>
           </div>
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">Precio por v²</label>
-              <input type="number" class="form-control" id="cot-precio-v2" placeholder="64.50" step="0.01" oninput="onCotV2Change()" style="background:var(--surface2)">
+              <input type="number" inputmode="decimal" class="form-control" id="cot-precio-v2" placeholder="64.50" step="0.01" oninput="onCotV2Change()" style="background:var(--surface2)">
             </div>
           </div>
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">Monto de reserva ($)</label>
-              <input type="number" class="form-control" id="cot-reserva" placeholder="500.00" step="0.01" oninput="renderCotizacion()">
+              <input type="number" inputmode="decimal" class="form-control" id="cot-reserva" placeholder="500.00" step="0.01" oninput="renderCotizacion()">
             </div>
             <div class="form-group">
               <label class="form-label">Tasa de interés anual (%)</label>
-              <input type="number" class="form-control" id="cot-tasa" placeholder="10.5" step="0.01" oninput="renderCotizacion()">
+              <input type="number" inputmode="decimal" class="form-control" id="cot-tasa" placeholder="10.5" step="0.01" oninput="renderCotizacion()">
             </div>
           </div>
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">Válida por (días)</label>
-              <input type="number" class="form-control" id="cot-validez" value="15" min="1" max="365" step="1" oninput="renderCotizacion()">
+              <input type="number" inputmode="numeric" class="form-control" id="cot-validez" value="15" min="1" max="365" step="1" oninput="renderCotizacion()">
             </div>
           </div>
           <div id="cot-modo-wrap" style="display:none;margin-top:4px">
@@ -1200,7 +1200,7 @@
           <div id="cot-cuota-deseada-wrap" style="display:none;margin-top:10px">
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">Cuota mensual deseada ($)</label>
-              <input type="number" class="form-control" id="cot-cuota-deseada" placeholder="1433.00" step="0.01" oninput="renderCotizacion()">
+              <input type="number" inputmode="decimal" class="form-control" id="cot-cuota-deseada" placeholder="1433.00" step="0.01" oninput="renderCotizacion()">
             </div>
           </div>
         </div>
@@ -1333,11 +1333,11 @@
       <div class="form-grid-3">
         <div class="form-group">
           <label class="form-label">Monto ($)</label>
-          <input type="number" class="form-control" id="pago-monto" placeholder="0.00" step="0.01" oninput="onMontoInput()">
+          <input type="number" inputmode="decimal" class="form-control" id="pago-monto" placeholder="0.00" step="0.01" oninput="onMontoInput()">
         </div>
         <div class="form-group">
           <label class="form-label">Saldo Pendiente ($)</label>
-          <input type="number" class="form-control" id="pago-saldo" placeholder="0.00" step="0.01">
+          <input type="number" inputmode="decimal" class="form-control" id="pago-saldo" placeholder="0.00" step="0.01">
         </div>
         <div class="form-group">
           <label class="form-label">Fecha de Pago</label>
@@ -1395,7 +1395,7 @@
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Teléfono / WhatsApp</label>
-          <input type="text" class="form-control" id="cli-tel" placeholder="0000-0000 (o +código de país, ej. +1 305-555-1234)">
+          <input type="text" class="form-control" id="cli-tel" placeholder="0000-0000 (o +código de país, ej. +1 305-555-1234)" inputmode="tel">
         </div>
         <div class="form-group">
           <label class="form-label">Referencia / Agente</label>
@@ -1572,11 +1572,11 @@
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Monto ($)</label>
-          <input type="number" class="form-control" id="edit-recibo-monto" step="0.01" oninput="onEditMontoInput()">
+          <input type="number" inputmode="decimal" class="form-control" id="edit-recibo-monto" step="0.01" oninput="onEditMontoInput()">
         </div>
         <div class="form-group">
           <label class="form-label">Saldo Pendiente ($)</label>
-          <input type="number" class="form-control" id="edit-recibo-saldo" step="0.01">
+          <input type="number" inputmode="decimal" class="form-control" id="edit-recibo-saldo" step="0.01">
         </div>
       </div>
       <div class="form-group">
@@ -3864,21 +3864,21 @@ function agregarFilaLote() {
     <div class="form-grid">
       <div class="form-group" style="margin-bottom:8px">
         <label class="form-label">Precio ($)</label>
-        <input type="number" class="form-control" id="cli-precio-${idx}" placeholder="18500.00" step="0.01" oninput="onFilaLoteChange(${idx})">
+        <input type="number" inputmode="decimal" class="form-control" id="cli-precio-${idx}" placeholder="18500.00" step="0.01" oninput="onFilaLoteChange(${idx})">
       </div>
       <div class="form-group" style="margin-bottom:8px" id="cli-reserva-wrap-${idx}">
         <label class="form-label">Reserva ($)</label>
-        <input type="number" class="form-control" id="cli-reserva-${idx}" placeholder="500.00" step="0.01" oninput="onFilaLoteChange(${idx})">
+        <input type="number" inputmode="decimal" class="form-control" id="cli-reserva-${idx}" placeholder="500.00" step="0.01" oninput="onFilaLoteChange(${idx})">
       </div>
     </div>
     <div class="form-grid" id="cli-meses-wrap-${idx}">
       <div class="form-group" style="margin-bottom:8px">
         <label class="form-label">Plazo (meses)</label>
-        <input type="number" class="form-control" id="cli-meses-${idx}" value="180" min="1" max="360" step="1" oninput="onFilaLoteChange(${idx})">
+        <input type="number" inputmode="numeric" class="form-control" id="cli-meses-${idx}" value="180" min="1" max="360" step="1" oninput="onFilaLoteChange(${idx})">
       </div>
       <div class="form-group" style="margin-bottom:8px">
         <label class="form-label">Tasa anual (%)</label>
-        <input type="number" class="form-control" id="cli-tasa-${idx}" value="${TASA_ANUAL_DEFAULT}" step="0.01" oninput="onFilaLoteChange(${idx})">
+        <input type="number" inputmode="decimal" class="form-control" id="cli-tasa-${idx}" value="${TASA_ANUAL_DEFAULT}" step="0.01" oninput="onFilaLoteChange(${idx})">
       </div>
     </div>
     <div id="cli-fila-info-${idx}" style="display:none;background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:11px;margin-top:4px"></div>`;
@@ -4667,7 +4667,7 @@ function editarPerfilCliente(cid) {
     <div class="form-grid" style="margin-bottom:14px">
       <div class="form-group">
         <label class="form-label">Teléfono / WhatsApp</label>
-        <input type="text" class="form-control" id="edit-tel" value="${(c.tel||'').replace(/"/g,'&quot;')}" placeholder="0000-0000 (o +código de país)">
+        <input type="text" class="form-control" id="edit-tel" value="${(c.tel||'').replace(/"/g,'&quot;')}" placeholder="0000-0000 (o +código de país)" inputmode="tel">
       </div>
       <div class="form-group">
         <label class="form-label">Estado civil</label>
@@ -4802,23 +4802,23 @@ function editarPerfilCliente(cid) {
               </div>
               <div class="form-group" style="margin-bottom:0">
                 <label class="form-label">Precio del lote ($)</label>
-                <input type="number" class="form-control" id="edit-lote-precio-${l.id}" value="${l.valor||0}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
+                <input type="number" inputmode="decimal" class="form-control" id="edit-lote-precio-${l.id}" value="${l.valor||0}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
               </div>
             </div>
             <div class="form-grid" id="edit-lote-plazo-fields-${l.id}" style="margin-bottom:8px;${(l.meses||0)===0?'display:none':''}">
               <div class="form-group" style="margin-bottom:0">
                 <label class="form-label">Prima / Reserva ($)</label>
-                <input type="number" class="form-control" id="edit-lote-reserva-${l.id}" value="${l.reserva||0}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
+                <input type="number" inputmode="decimal" class="form-control" id="edit-lote-reserva-${l.id}" value="${l.reserva||0}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
               </div>
               <div class="form-group" style="margin-bottom:0">
                 <label class="form-label">Plazo (meses)</label>
-                <input type="number" class="form-control" id="edit-lote-meses-${l.id}" value="${l.meses||180}" min="1" max="360" oninput="onEditLotePrecioChange('${l.id}')">
+                <input type="number" inputmode="numeric" class="form-control" id="edit-lote-meses-${l.id}" value="${l.meses||180}" min="1" max="360" oninput="onEditLotePrecioChange('${l.id}')">
               </div>
             </div>
             <div class="form-grid" id="edit-lote-plazo-fields2-${l.id}" style="${(l.meses||0)===0?'display:none':''}">
               <div class="form-group" style="margin-bottom:0">
                 <label class="form-label">Tasa anual (%)</label>
-                <input type="number" class="form-control" id="edit-lote-tasa-${l.id}" value="${((l.tasa||0.105)*100).toFixed(2)}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
+                <input type="number" inputmode="decimal" class="form-control" id="edit-lote-tasa-${l.id}" value="${((l.tasa||0.105)*100).toFixed(2)}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
               </div>
               <div style="background:var(--accent-pale);border-radius:6px;padding:8px 12px;font-size:12px;display:flex;align-items:center">
                 <span style="color:var(--text-muted)">Cuota calc.:&nbsp;</span>
@@ -4876,21 +4876,21 @@ function mostrarFormNuevoLote(cid) {
     <div class="form-grid" style="margin-bottom:8px">
       <div class="form-group" style="margin-bottom:0">
         <label class="form-label">Precio del lote ($)</label>
-        <input type="number" class="form-control" id="nuevo-lote-precio-${cid}" value="0" step="0.01" oninput="onNuevoLotePrecioChange(${cid})">
+        <input type="number" inputmode="decimal" class="form-control" id="nuevo-lote-precio-${cid}" value="0" step="0.01" oninput="onNuevoLotePrecioChange(${cid})">
       </div>
       <div class="form-group" style="margin-bottom:0" id="nuevo-lote-reserva-group-${cid}">
         <label class="form-label">Prima / Reserva ($)</label>
-        <input type="number" class="form-control" id="nuevo-lote-reserva-${cid}" value="0" step="0.01" oninput="onNuevoLotePrecioChange(${cid})">
+        <input type="number" inputmode="decimal" class="form-control" id="nuevo-lote-reserva-${cid}" value="0" step="0.01" oninput="onNuevoLotePrecioChange(${cid})">
       </div>
     </div>
     <div class="form-grid" id="nuevo-lote-plazo-fields-${cid}" style="margin-bottom:8px">
       <div class="form-group" style="margin-bottom:0">
         <label class="form-label">Plazo (meses)</label>
-        <input type="number" class="form-control" id="nuevo-lote-meses-${cid}" value="180" min="1" max="360" oninput="onNuevoLotePrecioChange(${cid})">
+        <input type="number" inputmode="numeric" class="form-control" id="nuevo-lote-meses-${cid}" value="180" min="1" max="360" oninput="onNuevoLotePrecioChange(${cid})">
       </div>
       <div class="form-group" style="margin-bottom:0">
         <label class="form-label">Tasa anual (%)</label>
-        <input type="number" class="form-control" id="nuevo-lote-tasa-${cid}" value="10.50" step="0.01" oninput="onNuevoLotePrecioChange(${cid})">
+        <input type="number" inputmode="decimal" class="form-control" id="nuevo-lote-tasa-${cid}" value="10.50" step="0.01" oninput="onNuevoLotePrecioChange(${cid})">
       </div>
     </div>
     <div style="background:var(--accent-pale);border-radius:6px;padding:8px 12px;font-size:12px;display:flex;align-items:center;margin-bottom:12px" id="nuevo-lote-cuota-row-${cid}">
@@ -4998,23 +4998,23 @@ async function confirmarNuevoLote(cid) {
       </div>
       <div class="form-group" style="margin-bottom:0">
         <label class="form-label">Precio del lote ($)</label>
-        <input type="number" class="form-control" id="edit-lote-precio-${l.id}" value="${valor}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
+        <input type="number" inputmode="decimal" class="form-control" id="edit-lote-precio-${l.id}" value="${valor}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
       </div>
     </div>
     <div class="form-grid" id="edit-lote-plazo-fields-${l.id}" style="margin-bottom:8px;${meses===0?'display:none':''}">
       <div class="form-group" style="margin-bottom:0">
         <label class="form-label">Prima / Reserva ($)</label>
-        <input type="number" class="form-control" id="edit-lote-reserva-${l.id}" value="${reserva}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
+        <input type="number" inputmode="decimal" class="form-control" id="edit-lote-reserva-${l.id}" value="${reserva}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
       </div>
       <div class="form-group" style="margin-bottom:0">
         <label class="form-label">Plazo (meses)</label>
-        <input type="number" class="form-control" id="edit-lote-meses-${l.id}" value="${meses||180}" min="1" max="360" oninput="onEditLotePrecioChange('${l.id}')">
+        <input type="number" inputmode="numeric" class="form-control" id="edit-lote-meses-${l.id}" value="${meses||180}" min="1" max="360" oninput="onEditLotePrecioChange('${l.id}')">
       </div>
     </div>
     <div class="form-grid" id="edit-lote-plazo-fields2-${l.id}" style="${meses===0?'display:none':''}">
       <div class="form-group" style="margin-bottom:0">
         <label class="form-label">Tasa anual (%)</label>
-        <input type="number" class="form-control" id="edit-lote-tasa-${l.id}" value="${(tasa*100).toFixed(2)}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
+        <input type="number" inputmode="decimal" class="form-control" id="edit-lote-tasa-${l.id}" value="${(tasa*100).toFixed(2)}" step="0.01" oninput="onEditLotePrecioChange('${l.id}')">
       </div>
       <div style="background:var(--accent-pale);border-radius:6px;padding:8px 12px;font-size:12px;display:flex;align-items:center">
         <span style="color:var(--text-muted)">Cuota calc.:&nbsp;</span>
@@ -6476,23 +6476,23 @@ window.guardarEdicionPerfil = async function(cid) {
         </div>
         <div class="form-group">
           <label class="form-label">Precio del lote ($)</label>
-          <input type="number" class="form-control" id="asignar-precio" placeholder="18500.00" step="0.01" oninput="onAsignarPrecioChange()">
+          <input type="number" inputmode="decimal" class="form-control" id="asignar-precio" placeholder="18500.00" step="0.01" oninput="onAsignarPrecioChange()">
         </div>
       </div>
       <div class="form-grid" id="asignar-plazo-fields">
         <div class="form-group">
           <label class="form-label">Monto de reserva ($)</label>
-          <input type="number" class="form-control" id="asignar-reserva" placeholder="500.00" step="0.01" oninput="onAsignarPrecioChange()">
+          <input type="number" inputmode="decimal" class="form-control" id="asignar-reserva" placeholder="500.00" step="0.01" oninput="onAsignarPrecioChange()">
         </div>
         <div class="form-group">
           <label class="form-label">Tasa de interés anual (%)</label>
-          <input type="number" class="form-control" id="asignar-tasa" placeholder="10.5" step="0.01" oninput="onAsignarPrecioChange()">
+          <input type="number" inputmode="decimal" class="form-control" id="asignar-tasa" placeholder="10.5" step="0.01" oninput="onAsignarPrecioChange()">
         </div>
       </div>
       <div class="form-grid" id="asignar-meses-wrap">
         <div class="form-group">
           <label class="form-label">Plazo (meses)</label>
-          <input type="number" class="form-control" id="asignar-meses" value="180" min="1" max="360" step="1" oninput="onAsignarPrecioChange()">
+          <input type="number" inputmode="numeric" class="form-control" id="asignar-meses" value="180" min="1" max="360" step="1" oninput="onAsignarPrecioChange()">
         </div>
       </div>
       <div id="asignar-resumen" style="display:none;background:var(--surface2);border-radius:6px;padding:10px 14px;font-size:12px;margin-top:8px"></div>
@@ -6541,7 +6541,7 @@ window.guardarEdicionPerfil = async function(cid) {
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Monto ($)</label>
-          <input type="number" class="form-control" id="costo-monto" placeholder="0.00" step="0.01">
+          <input type="number" inputmode="decimal" class="form-control" id="costo-monto" placeholder="0.00" step="0.01">
         </div>
         <div class="form-group">
           <label class="form-label">Forma de Pago</label>
