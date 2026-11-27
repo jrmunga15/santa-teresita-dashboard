@@ -3725,10 +3725,16 @@ function openModal(id) {
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
   if (!document.querySelector('.modal-overlay.open')) document.body.classList.remove('modal-abierto');
-  // Si seguimos parados en el estado de historial que este modal empujó al
-  // abrirse, lo consumimos aquí mismo para que no quede un "paso fantasma"
-  // que luego haga falta otro toque de "volver" para saltarse.
-  if (history.state && history.state.modal === id) history.back();
+  // OJO: a propósito NO se llama history.back() aquí para "consumir" el
+  // paso que este modal empujó al abrirse. history.back() es asíncrono --
+  // si justo después de cerrar este modal se abre otro (ej. abrirEditarRecibo:
+  // closeModal('modal-ver-recibo') seguido de openModal('modal-editar-recibo')),
+  // el pushState del segundo modal se ejecuta ANTES de que el back() del
+  // primero realmente navegue, y el popstate termina cerrando el modal que
+  // se acababa de abrir -- el botón "✏ Editar" se quedaba sin hacer nada.
+  // El costo es un paso de historial "fantasma" cuando se cierra un modal
+  // con la X/Cancelar sin abrir otro después (un "volver" de más sin efecto
+  // visible); el manejador de popstate ya lo resuelve solo sin romper nada.
 }
 
 // Mensaje de confirmación grande y no-bloqueante (reemplaza alert() para
